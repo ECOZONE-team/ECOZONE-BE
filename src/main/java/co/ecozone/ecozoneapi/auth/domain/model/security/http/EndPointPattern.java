@@ -1,4 +1,4 @@
-package co.ecozone.ecozoneapi.auth.domain.vo;
+package co.ecozone.ecozoneapi.auth.domain.model.security.http;
 
 /**
  * 엔드포인트 패턴(e.g., /api/**)을 표현하는 값 객체
