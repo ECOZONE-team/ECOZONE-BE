@@ -1,6 +1,6 @@
-package co.ecozone.ecozoneapi.auth.domain.model;
+package co.ecozone.ecozoneapi.auth.domain.model.security;
 
-import co.ecozone.ecozoneapi.auth.domain.vo.AccessRule;
+import co.ecozone.ecozoneapi.auth.domain.model.security.http.AccessRule;
 
 import java.util.List;
 
