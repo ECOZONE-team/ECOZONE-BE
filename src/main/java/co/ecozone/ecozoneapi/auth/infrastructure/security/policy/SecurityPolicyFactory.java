@@ -1,8 +1,8 @@
 package co.ecozone.ecozoneapi.auth.infrastructure.security.policy;
 
-import co.ecozone.ecozoneapi.auth.domain.model.HttpMethodType;
-import co.ecozone.ecozoneapi.auth.domain.model.SecurityPolicy;
-import co.ecozone.ecozoneapi.auth.domain.vo.AccessRule;
+import co.ecozone.ecozoneapi.auth.domain.model.security.http.HttpMethodType;
+import co.ecozone.ecozoneapi.auth.domain.model.security.SecurityPolicy;
+import co.ecozone.ecozoneapi.auth.domain.model.security.http.AccessRule;
 import co.ecozone.ecozoneapi.auth.infrastructure.security.SecurityRouteProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
