@@ -1,6 +1,8 @@
 package co.ecozone.ecozoneapi.auth.infrastructure.security.jwt;
 
 import co.ecozone.ecozoneapi.auth.domain.model.*;
+import co.ecozone.ecozoneapi.auth.domain.model.security.Role;
+import co.ecozone.ecozoneapi.auth.domain.model.token.*;
 import co.ecozone.ecozoneapi.auth.domain.port.out.TokenProvider;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -29,9 +32,10 @@ import java.util.stream.Collectors;
 class JwtTokenProvider implements TokenProvider {
 
     private final JwtProperties props;
+    private final Clock clock;
 
     private byte[] key() {
-        // base64 디코드 우선, 실패하면 평문 bytes (개발 편의)
+        // base64 디코드 우선, 실패하면 평문 bytes
         try { return Base64.getDecoder().decode(props.getBase64Secret()); }
         catch (IllegalArgumentException e) { return props.getBase64Secret().getBytes(StandardCharsets.UTF_8); }
     }
@@ -47,7 +51,7 @@ class JwtTokenProvider implements TokenProvider {
     }
 
     private String sign(UserId userId, Set<Role> roles, long ttlSeconds, String type) {
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
         Instant exp = now.plusSeconds(ttlSeconds);
 
         List<String> roleNames = roles.stream().map(Enum::name).toList();
@@ -81,7 +85,7 @@ class JwtTokenProvider implements TokenProvider {
             }
 
             JWTClaimsSet c = jwt.getJWTClaimsSet();
-            Instant now = Instant.now();
+            Instant now = Instant.now(clock);
             long skew = props.getClockSkewSeconds();
 
             Instant exp = Optional.ofNullable(c.getExpirationTime()).map(Date::toInstant).orElse(null);
@@ -89,7 +93,7 @@ class JwtTokenProvider implements TokenProvider {
                 return new TokenFailure(jwtString, VerificationError.EXPIRED, "expired at " + exp);
             }
 
-            // 권장: nbf(not before) 우선 검사
+            // nbf(not before) 우선 검사
             Instant nbf = Optional.ofNullable(c.getNotBeforeTime()).map(Date::toInstant).orElse(null);
             if (nbf != null && now.isBefore(nbf.minusSeconds(skew))) {
                 return new TokenFailure(jwtString, VerificationError.NOT_BEFORE, "not before " + nbf);
@@ -99,6 +103,12 @@ class JwtTokenProvider implements TokenProvider {
             Instant iat = Optional.ofNullable(c.getIssueTime()).map(Date::toInstant).orElse(null);
             if (iat != null && now.isBefore(iat.minusSeconds(skew))) {
                 return new TokenFailure(jwtString, VerificationError.NOT_BEFORE, "issued at " + iat);
+            }
+
+            String typClaim = c.getStringClaim("typ");
+            TokenType type = TokenType.from(typClaim);
+            if (type == null) {
+                return new TokenFailure(jwtString, VerificationError.MALFORMED, "unknown typ: " + typClaim);
             }
 
             String sub = c.getSubject();
@@ -114,6 +124,7 @@ class JwtTokenProvider implements TokenProvider {
                     .collect(Collectors.toSet());
 
             return new TokenSuccess(
+                    type,
                     new UserId(Long.parseLong(sub)),
                     roles,
                     iat, exp,
