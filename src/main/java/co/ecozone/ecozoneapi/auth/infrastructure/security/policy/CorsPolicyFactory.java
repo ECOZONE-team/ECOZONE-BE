@@ -1,4 +1,4 @@
-package co.ecozone.ecozoneapi.auth.application.service;
+package co.ecozone.ecozoneapi.auth.infrastructure.security.policy;
 
 import co.ecozone.ecozoneapi.auth.domain.model.CorsPolicy;
 import co.ecozone.ecozoneapi.auth.domain.model.CorsRule;
