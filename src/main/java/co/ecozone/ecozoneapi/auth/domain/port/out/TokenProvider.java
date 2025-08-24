@@ -1,7 +1,7 @@
 package co.ecozone.ecozoneapi.auth.domain.port.out;
 
-import co.ecozone.ecozoneapi.auth.domain.model.Role;
-import co.ecozone.ecozoneapi.auth.domain.model.TokenVerification;
+import co.ecozone.ecozoneapi.auth.domain.model.security.Role;
+import co.ecozone.ecozoneapi.auth.domain.model.token.TokenVerification;
 import co.ecozone.ecozoneapi.auth.domain.model.UserId;
 
 import java.util.Set;
