@@ -1,0 +1,37 @@
+version: "3.8"
+
+networks:
+  oznetwork:
+    driver: bridge
+
+services:
+  redis:
+    image: redis:alpine
+    container_name: eco-redis
+    command: ["redis-server", "--appendonly", "yes"]   # AOF 켜서 데이터 보존
+    ports:
+      - "6379:6379"                                   # host:container
+    volumes:
+      - ./redis-data:/data                             # Redis 데이터 영속화
+    labels:
+      org.springframework.boot.service-connection: "redis"  # Spring Boot Service Connections
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - oznetwork
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: eco-redisinsight
+    ports:
+      - "5540:5540"           # UI: http://localhost:5540
+    volumes:
+      - ./redisinsight-data:/data   # RedisInsight v2는 /data 권장
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - oznetwork
