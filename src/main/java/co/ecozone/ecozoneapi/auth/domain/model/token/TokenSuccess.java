@@ -1,4 +1,7 @@
-package co.ecozone.ecozoneapi.auth.domain.model;
+package co.ecozone.ecozoneapi.auth.domain.model.token;
+
+import co.ecozone.ecozoneapi.auth.domain.model.UserId;
+import co.ecozone.ecozoneapi.auth.domain.model.security.Role;
 
 import java.time.Instant;
 import java.util.Set;
@@ -10,6 +13,7 @@ import java.util.Set;
  * @author jeongdayeon
  */
 public record TokenSuccess(
+        TokenType tokenType,
         UserId userId, Set<Role> roles,
         Instant issuedAt, Instant expiresAt,
         String issuer, String tokenId, String raw
