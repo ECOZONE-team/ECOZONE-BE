@@ -1,4 +1,4 @@
-package co.ecozone.ecozoneapi.auth.domain.model;
+package co.ecozone.ecozoneapi.auth.domain.model.token;
 
 /**
  * 토큰 검증 실패를 표현하는 도메인 결과 타입
