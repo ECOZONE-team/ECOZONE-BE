@@ -1,14 +1,15 @@
 package co.ecozone.ecozoneapi.auth.infrastructure.security;
 
-import co.ecozone.ecozoneapi.auth.application.service.CorsPolicyFactory;
-import co.ecozone.ecozoneapi.auth.application.service.SecurityPolicyFactory;
-import co.ecozone.ecozoneapi.auth.domain.model.CorsPolicy;
-import co.ecozone.ecozoneapi.auth.domain.model.CorsRule;
-import co.ecozone.ecozoneapi.auth.domain.model.HttpMethodType;
-import co.ecozone.ecozoneapi.auth.domain.model.SecurityPolicy;
+import co.ecozone.ecozoneapi.auth.application.port.TokenRevocationStore;
+import co.ecozone.ecozoneapi.auth.infrastructure.security.policy.CorsPolicyFactory;
+import co.ecozone.ecozoneapi.auth.infrastructure.security.policy.SecurityPolicyFactory;
+import co.ecozone.ecozoneapi.auth.domain.model.security.http.CorsPolicy;
+import co.ecozone.ecozoneapi.auth.domain.model.security.http.CorsRule;
+import co.ecozone.ecozoneapi.auth.domain.model.security.http.HttpMethodType;
+import co.ecozone.ecozoneapi.auth.domain.model.security.SecurityPolicy;
 import co.ecozone.ecozoneapi.auth.domain.port.out.TokenProvider;
-import co.ecozone.ecozoneapi.auth.domain.vo.AccessRule;
-import co.ecozone.ecozoneapi.auth.domain.vo.EndPointPattern;
+import co.ecozone.ecozoneapi.auth.domain.model.security.http.AccessRule;
+import co.ecozone.ecozoneapi.auth.domain.model.security.http.EndPointPattern;
 import co.ecozone.ecozoneapi.auth.infrastructure.security.filter.JwtAuthenticationFilter;
 import co.ecozone.ecozoneapi.auth.infrastructure.security.jwt.JwtProperties;
 import lombok.RequiredArgsConstructor;
@@ -51,12 +52,13 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 public class SecurityConfig {
 
     private final TokenProvider tokenProvider;
+    private final TokenRevocationStore revocationStore;
     private final SecurityPolicyFactory policyFactory;
     private final CorsPolicyFactory corsPolicyFactory;
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(tokenProvider);
+        return new JwtAuthenticationFilter(tokenProvider, revocationStore);
     }
 
     @Bean
