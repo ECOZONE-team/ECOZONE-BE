@@ -1,4 +1,4 @@
-package co.ecozone.ecozoneapi.auth.domain.model;
+package co.ecozone.ecozoneapi.auth.domain.model.security.http;
 
 /**
  * 정책 모델에서 사용할 HTTP 메서드 값 타입 추상화
