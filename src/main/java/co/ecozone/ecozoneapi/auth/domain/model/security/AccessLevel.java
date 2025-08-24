@@ -1,4 +1,4 @@
-package co.ecozone.ecozoneapi.auth.domain.model;
+package co.ecozone.ecozoneapi.auth.domain.model.security;
 
 /**
  * 엔드포인트 접근 수준을 나타내는 열거형
