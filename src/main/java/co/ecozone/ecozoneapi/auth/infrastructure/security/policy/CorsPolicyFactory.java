@@ -1,7 +1,7 @@
 package co.ecozone.ecozoneapi.auth.infrastructure.security.policy;
 
-import co.ecozone.ecozoneapi.auth.domain.model.CorsPolicy;
-import co.ecozone.ecozoneapi.auth.domain.model.CorsRule;
+import co.ecozone.ecozoneapi.auth.domain.model.security.http.CorsPolicy;
+import co.ecozone.ecozoneapi.auth.domain.model.security.http.CorsRule;
 import co.ecozone.ecozoneapi.auth.infrastructure.security.CorsProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
