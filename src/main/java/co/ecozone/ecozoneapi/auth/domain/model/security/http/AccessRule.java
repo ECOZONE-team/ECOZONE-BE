@@ -1,8 +1,7 @@
-package co.ecozone.ecozoneapi.auth.domain.vo;
+package co.ecozone.ecozoneapi.auth.domain.model.security.http;
 
 
-import co.ecozone.ecozoneapi.auth.domain.model.AccessLevel;
-import co.ecozone.ecozoneapi.auth.domain.model.HttpMethodType;
+import co.ecozone.ecozoneapi.auth.domain.model.security.AccessLevel;
 import lombok.AllArgsConstructor;
 
 import java.util.Collection;
