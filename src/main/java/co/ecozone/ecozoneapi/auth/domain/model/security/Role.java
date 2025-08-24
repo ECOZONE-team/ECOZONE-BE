@@ -1,4 +1,4 @@
-package co.ecozone.ecozoneapi.auth.domain.model;
+package co.ecozone.ecozoneapi.auth.domain.model.security;
 
 /**
  * 도메인 역할(USER, ADMIN 등)을 나타내는 열거형
