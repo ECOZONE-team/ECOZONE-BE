@@ -1,4 +1,4 @@
-package co.ecozone.ecozoneapi.auth.domain.model;
+package co.ecozone.ecozoneapi.auth.domain.model.token;
 
 /**
  * 토큰 검증 실패 사유를 표현하는 기계가독형 에러 코드 열거형
