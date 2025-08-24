@@ -1,4 +1,7 @@
-package co.ecozone.ecozoneapi.auth.domain.model;
+package co.ecozone.ecozoneapi.auth.domain.model.token;
+
+import co.ecozone.ecozoneapi.auth.domain.model.token.TokenFailure;
+import co.ecozone.ecozoneapi.auth.domain.model.token.TokenSuccess;
 
 /**
  * 토큰 검증의 결과를 나타내는 봉인(Sealed) 인터페이스
