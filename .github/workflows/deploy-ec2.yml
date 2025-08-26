@@ -3,7 +3,7 @@ name: Deploy API to EC2
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "develop" ]
     paths:
       - "backend/**"
       - ".github/workflows/deploy-ec2.yml"
@@ -25,20 +25,25 @@ jobs:
       contents: read
 
     steps:
-    # ────────────────────────
-    # 0️.  리포 구조 확인 (디버그)
-    # ────────────────────────
-      - name: Show repo tree
-        run: |
-          pwd
-          ls -la
-          find . -maxdepth 2 -type d
         
       # ────────────────────────
       # 1️.  코드 체크아웃
       # ────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        
+          submodules: recursive    
+
+    # ────────────────────────
+    #   리포 구조 확인 (디버그)
+    # ────────────────────────
+      - name: Show repo tree
+        run: |
+          pwd
+          git rev-parse --short HEAD || true
+          ls -la
+          find . -maxdepth 2 -type d
 
       # ────────────────────────
       # 2️.  Docker 빌드 환경 준비
