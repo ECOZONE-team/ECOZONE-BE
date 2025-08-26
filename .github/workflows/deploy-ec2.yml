@@ -117,47 +117,82 @@ jobs:
           --parameters commands='["echo hello from ssm","uname -a"]'
 
       # ────────────────────────
-      # 8.  EC2 대상에 SSM 명령 전송 (docker compose 배포)
+      # 8.  EC2 대상에 SSM 명령 전송 
       # ────────────────────────
-      - name: Send deploy command via SSM (docker compose)
+      - name: Send deploy command via SSM (bootstrap + compose)
         id: ssm
         run: |
+          set -e
           ACCOUNT="${AWS_ACCOUNT_ID}"
           REGION="${AWS_REGION}"
           REPO="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO}"
           TAG="${IMAGE_TAG}"
-          APP_CONF=$(echo "${{ secrets.APPLICATION_YML }}" | base64 -w 0)
+
+          # application.yml 을 Secrets로 주입(없으면 빈 파일)
+          if [ -n "${{ secrets.APPLICATION_YML }}" ]; then
+            APP_CONF=$(echo "${{ secrets.APPLICATION_YML }}" | base64 -w 0)
+          else
+            APP_CONF="$(echo "" | base64 -w 0)"
+          fi
 
           aws ssm send-command \
+            --region "$REGION" \
             --document-name "AWS-RunShellScript" \
             --instance-ids i-02e6ebdf2218be79b \
             --parameters commands='[
-              "set -e",
-              "aws ecr get-login-password --region '"${REGION}"' | docker login --username AWS --password-stdin '"${REPO%/*}"'",
-              "docker pull '"${REPO}:${TAG}"'",
-              "cd /srv/app || mkdir -p /srv/app && cd /srv/app",
-              "echo '"${APP_CONF}"' | base64 -d > ./application.yml",
+              "set -euxo pipefail",
 
-              "export IMAGE=${REPO}",
-              "export IMAGE_TAG=${TAG}",
-              "docker compose --env-file /etc/app.env -f compose.yml pull",
-              "docker compose --env-file /etc/app.env -f compose.yml up -d",
-              "docker image prune -f"
+              # 1) Docker/compose 설치 및 데몬 기동(snap 또는 apt 둘 다 대응)
+              "if ! command -v docker >/dev/null 2>&1; then apt-get update -y && apt-get install -y docker.io docker-compose-plugin; fi",
+              "if systemctl list-units --type=service | grep -q ''docker.service''; then systemctl enable --now docker; else snap start --enable docker || true; fi",
+
+              # 2) ECR 로그인
+              "aws ecr get-login-password --region '"$REGION"' | docker login --username AWS --password-stdin '"${REPO%/*}"'",
+
+              # 3) 작업 디렉터리/파일 준비
+              "mkdir -p /srv/app && cd /srv/app",
+
+              # compose.yml 없으면 생성 (호스트 80 → 컨테이너 8080)
+              "test -f compose.yml || cat > compose.yml <<\"YAML\"",
+              "services:",
+              "  api:",
+              "    image: '"$REPO:$TAG"'",   # ← 리터럴로 박아넣기(SSM 셸 변수 의존 X)",
+              "    container_name: ecozone-api",
+              "    restart: always",
+              "    ports:",
+              "      - \"80:8080\"",
+              "    environment:",
+              "      - SPRING_CONFIG_LOCATION=file:/app/config/application.yml",
+              "    volumes:",
+              "      - /srv/app/application.yml:/app/config/application.yml:ro",
+              "YAML",
+
+              # application.yml 주입(Secrets 없으면 빈 파일)
+              "echo '"$APP_CONF"' | base64 -d > /srv/app/application.yml",
+
+              # 4) 배포
+              "docker compose -f compose.yml pull",
+              "docker compose -f compose.yml up -d",
+
+              # 5) 상태 출력
+              "docker ps",
+              "docker compose -f compose.yml ps"
             ]' \
-            --timeout-seconds 600 \
-            --max-concurrency "50" \
-            --max-errors "0" \
+            --timeout-seconds 1800 \
             --output json > ssm.json
 
           cat ssm.json
-          INVOCATION_ID=$(jq -r '.Command.CommandId' ssm.json)
-          echo "command_id=${INVOCATION_ID}" >> $GITHUB_OUTPUT
+          echo "command_id=$(jq -r '.Command.CommandId' ssm.json)" >> $GITHUB_OUTPUT
 
       # ────────────────────────
-      # 9.  SSM 완료 대기 (간단 체크)
+      # 9.  SSM 실행 로그 가져오기(성공/실패 확인)
       # ────────────────────────
-      - name: Wait for SSM completion
+      - name: Fetch SSM execution logs
         run: |
           CMD_ID="${{ steps.ssm.outputs.command_id }}"
-          sleep 30
-          echo "SSM command ${CMD_ID} sent."
+          aws ssm list-command-invocations \
+            --region ${{ env.AWS_REGION }} \
+            --command-id "$CMD_ID" \
+            --details \
+            --query 'CommandInvocations[0].CommandPlugins[].{Name:Name,Status:Status,Output:Output}'
+
