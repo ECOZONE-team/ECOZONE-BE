@@ -1,0 +1,125 @@
+# .github/workflows/deploy-ec2.yml
+name: Deploy API to EC2
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-ec2.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-northeast-2
+  AWS_ACCOUNT_ID: "056445322590"
+  ECR_REPO: ecozone-alpha-api
+  IMAGE_TAG: ${{ github.sha }}
+  SSM_TARGETS: |
+    [{"Key":"tag:App","Values":["ecozone-alpha-api"]}]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      # ────────────────────────
+      # 1️.  코드 체크아웃
+      # ────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ────────────────────────
+      # 2️.  Docker 빌드 환경 준비
+      # ────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ────────────────────────
+      # 3️.  AWS 자격 증명 설정 (OIDC AssumeRole)
+      # ────────────────────────
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-action-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ────────────────────────
+      # 4️.  ECR 로그인
+      # ────────────────────────
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ────────────────────────
+      # 5️.  Docker 이미지 빌드 & ECR 푸시
+      # ────────────────────────
+      - name: Build & Push image
+        run: |
+          REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
+          docker build -t "${REPO}:${IMAGE_TAG}" -t "${REPO}:latest" backend
+          docker push "${REPO}:${IMAGE_TAG}"
+          docker push "${REPO}:latest"
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      # ────────────────────────
+      # 6️.  AWS 자격 증명 설정 (OIDC AssumeRole)
+      # ────────────────────────
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-action-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ────────────────────────
+      # 7️.  EC2 대상에 SSM 명령 전송 (docker compose 배포)
+      # ────────────────────────
+      - name: Send deploy command via SSM (docker compose)
+        id: ssm
+        run: |
+          ACCOUNT="${AWS_ACCOUNT_ID}"
+          REGION="${AWS_REGION}"
+          REPO="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO}"
+          TAG="${IMAGE_TAG}"
+
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy ${REPO}:${TAG}" \
+            --targets '${{ env.SSM_TARGETS }}' \
+            --parameters commands='[
+              "set -e",
+              "aws ecr get-login-password --region '"${REGION}"' | docker login --username AWS --password-stdin '"${REPO%/*}"'",
+              "docker pull '"${REPO}:${TAG}"'",
+              "cd /srv/app || mkdir -p /srv/app && cd /srv/app",
+              "export IMAGE=${REPO}",
+              "export IMAGE_TAG=${TAG}",
+              "docker compose --env-file /etc/app.env -f compose.yml pull",
+              "docker compose --env-file /etc/app.env -f compose.yml up -d",
+              "docker image prune -f"
+            ]' \
+            --timeout-seconds 600 \
+            --max-concurrency "50" \
+            --max-errors "0" \
+            --output json > ssm.json
+
+          cat ssm.json
+          INVOCATION_ID=$(jq -r '.Command.CommandId' ssm.json)
+          echo "command_id=${INVOCATION_ID}" >> $GITHUB_OUTPUT
+
+      # ────────────────────────
+      # 8️.  SSM 완료 대기 (간단 체크)
+      # ────────────────────────
+      - name: Wait for SSM completion
+        run: |
+          CMD_ID="${{ steps.ssm.outputs.command_id }}"
+          sleep 30
+          echo "SSM command ${CMD_ID} sent."
