@@ -128,35 +128,45 @@ jobs:
           REPO="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO}"
           TAG="${IMAGE_TAG}"
 
-          # application.yml -> base64 (없으면 빈 값)
-          if [ -n "${{ secrets.APPLICATION_YML }}" ]; then
-            APP_CONF=$(echo "${{ secrets.APPLICATION_YML }}" | base64 -w 0)
+          if [ -n "${{ secrets.APPLICATION_PROPERTIES }}" ]; then
+            APP_CONF=$(echo "${{ secrets.APPLICATION_PROPERTIES }}" | base64 -w 0)
           else
             APP_CONF="$(echo "" | base64 -w 0)"
           fi
 
-          # 1) 실행할 명령을 Bash 배열로 구성 (각 요소가 한 줄 커맨드)
           CMDS=(
-            "set -euxo pipefail"
-            "if ! command -v docker >/dev/null 2>&1; then apt-get update -y && apt-get install -y docker.io docker-compose-plugin; fi"
-            "if systemctl list-units --type=service | grep -q docker.service; then systemctl enable --now docker; else snap start --enable docker || true; fi"
-            "aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com"
-            "mkdir -p /srv/app/logs && cd /srv/app"
-            "printf '%s\n' 'services:' '  api:' '    image: ${REPO}:${TAG}' '    container_name: ecozone-api' '    restart: always' '    ports:' '      - \"80:8080\"' '    volumes:' '      - /srv/app/application.yml:/app/config/application.yml:ro' > compose.yml"
-            "echo ${APP_CONF} | base64 -d > /srv/app/application.yml"
-            "docker compose -f compose.yml pull"
-            "docker compose -f compose.yml up -d"
-            "docker compose -f compose.yml logs --no-color > /srv/app/logs/compose_\$(date +%Y%m%d_%H%M%S).log 2>&1 || true"
-            "docker logs ecozone-api --since 10m > /srv/app/logs/api_\$(date +%Y%m%d_%H%M%S).log 2>&1 || true"
-            "docker ps"
-            "ls -l /srv/app /srv/app/logs"
+            "bash -lc 'set -eux'"
+            "bash -lc 'command -v docker >/dev/null 2>&1 || { sudo apt-get update -y && sudo apt-get install -y docker.io docker-compose-plugin; }'"
+            "bash -lc 'systemctl list-units --type=service | grep -q docker.service && sudo systemctl enable --now docker || sudo snap start --enable docker || true'"
+            "bash -lc 'aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com'"
+            "bash -lc 'sudo mkdir -p /srv/app/logs && cd /srv/app'"
+            # compose.yml 생성
+            "bash -lc 'printf \"%s\n\" \
+              \"services:\" \
+              \"  api:\" \
+              \"    image: ${REPO}:${TAG}\" \
+              \"    container_name: ecozone-api\" \
+              \"    restart: always\" \
+              \"    ports:\" \
+              \"      - 80:8080\" \
+              \"    volumes:\" \
+              \"      - /srv/app/application.yml:/app/config/application.yml:ro\" \
+              > /srv/app/compose.yml'"
+            # application.yml 저장
+            "bash -lc 'echo ${APP_CONF} | base64 -d > /srv/app/application.yml'"
+            # 배포
+            "bash -lc 'cd /srv/app && docker compose -f compose.yml pull'"
+            "bash -lc 'cd /srv/app && docker compose -f compose.yml up -d'"
+            # 로그 파일 저장(날짜 변수 사용)
+            "bash -lc 'TS=$(date +%Y%m%d_%H%M%S); cd /srv/app; docker compose -f compose.yml logs --no-color > logs/compose_${TS}.log 2>&1 || true'"
+            "bash -lc 'TS=$(date +%Y%m%d_%H%M%S); docker logs ecozone-api --since 10m > /srv/app/logs/api_${TS}.log 2>&1 || true'"
+            # 상태 확인
+            "bash -lc 'docker ps'"
+            "bash -lc 'ls -l /srv/app /srv/app/logs || true'"
           )
 
-          # 2) 위 배열을 깨끗한 JSON({ "commands": [...] })으로 직렬화
-          printf '%s\0' "${CMDS[@]}" \
-            | jq -Rs 'split("\u0000")[:-1] | {commands: .}' > commands.json
+          printf '%s\0' "${CMDS[@]}" | jq -Rs 'split("\u0000")[:-1] | {commands: .}' > commands.json
 
-          # 3) SSM 전송 (parameters를 파일로 전달)
           aws ssm send-command \
             --region "$REGION" \
             --document-name "AWS-RunShellScript" \
@@ -167,7 +177,6 @@ jobs:
 
           cat ssm.json
           echo "command_id=$(jq -r '.Command.CommandId' ssm.json)" >> $GITHUB_OUTPUT
-
 
       # ────────────────────────
       # 9.  SSM 실행 로그 가져오기(성공/실패 확인)
