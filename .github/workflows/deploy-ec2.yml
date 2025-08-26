@@ -99,22 +99,28 @@ jobs:
           REGION:  ${{ env.AWS_REGION }}
           REPO:    ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}
           TAG:     ${{ env.IMAGE_TAG }}
-
-          # 레포의 compose.yml을 base64로 변환 
-          COMPOSE_B64: ${{ hashFiles('compose.yml') && (steps.read_compose.outputs.b64 || '') }}
           APP_YML: ${{ secrets.APPLICATION_YML || '' }}
         run: |
           set -euo pipefail
 
-          # compose.yml -> base64 
+          # 0) compose.yml 존재 확인(레포 루트)
+          if [ ! -f compose.yml ]; then
+            echo "compose.yml not found at repo root."
+            find . -maxdepth 2 -type f -name "compose.yml" -print
+            exit 1
+          fi
+
+          # 1) compose.yml → base64 (러너에서 읽어 EC2로 전송)
           COMPOSE_B64="$(base64 -w 0 < compose.yml)"
-          # application.yml -> base64 
+
+          # 2) application.yml → base64 
           if [ -n "${APP_YML:-}" ]; then
             APP_B64="$(printf '%s' "${APP_YML}" | base64 -w 0)"
           else
             APP_B64=""
           fi
 
+          # 3) SSM용 commands.json 생성
           jq -n --arg ACCOUNT "$ACCOUNT" \
                 --arg REGION  "$REGION" \
                 --arg REPO    "$REPO" \
@@ -130,16 +136,16 @@ jobs:
             # 데몬 기동 (systemd or snap)
             "if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q ^docker.service; then sudo systemctl enable --now docker; else sudo snap start --enable docker || true; fi",
 
-            # ECR 로그인(이미지 풀은 compose가 하도록 생략)
+            # ECR 로그인
             "aws ecr get-login-password --region \($REGION) | docker login --username AWS --password-stdin \($ACCOUNT).dkr.ecr.\($REGION).amazonaws.com",
 
             # 작업 디렉터리
             "sudo mkdir -p /srv/app/logs && cd /srv/app",
 
-            # 레포의 compose.yml 배포
+            # 레포의 compose.yml 복원
             "printf %s \"\($COMPB64)\" | base64 -d > /srv/app/compose.yml",
 
-            # application.yml 배포(있으면 복원)
+            # application.yml 복원(있으면), 권한 부여
             "printf %s \"\($APPB64)\" | base64 -d > /srv/app/application.yml || true",
             "chmod 644 /srv/app/application.yml || true",
 
@@ -156,6 +162,7 @@ jobs:
             "ls -l /srv/app /srv/app/logs || true"
           ]}' > commands.json
 
+          # 4) SSM 실행
           aws ssm send-command \
             --region "$REGION" \
             --document-name "AWS-RunShellScript" \
@@ -168,7 +175,7 @@ jobs:
           echo "command_id=$(jq -r '.Command.CommandId' ssm.json)" >> $GITHUB_OUTPUT
 
       # ────────────────────────
-      # 9. 실행 로그 확인
+      # 9.  실행 로그 확인
       # ────────────────────────
       - name: Fetch SSM execution logs
         run: |
@@ -178,4 +185,3 @@ jobs:
             --command-id "$CMD_ID" \
             --details \
             --query 'CommandInvocations[0].CommandPlugins[].{Name:Name,Status:Status,Output:Output}'
-
