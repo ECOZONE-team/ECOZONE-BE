@@ -69,9 +69,17 @@ jobs:
       - name: Login to ECR
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
+        
+      # ────────────────────────
+      # 5. ECR 리포지토리 없으면 생성
+      # ────────────────────────
+      - name: Ensure ECR repository exists
+        run: |
+          aws ecr describe-repositories --repository-names $ECR_REPO --region $AWS_REGION || \
+          aws ecr create-repository --repository-name $ECR_REPO --region $AWS_REGION
 
       # ────────────────────────
-      # 5️.  Docker 이미지 빌드 & ECR 푸시
+      # 6.  Docker 이미지 빌드 & ECR 푸시
       # ────────────────────────
       - name: Build & Push image
         run: |
