@@ -5,7 +5,10 @@ on:
   push:
     branches: [ "develop" ]
     paths:
-      - "backend/**"
+      - "src/**"
+      - "build.gradle"
+      - "settings.gradle"
+      - "Dockerfile"
       - ".github/workflows/deploy-ec2.yml"
   workflow_dispatch:
 
@@ -73,7 +76,7 @@ jobs:
       - name: Build & Push image
         run: |
           REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
-          docker build -t "${REPO}:${IMAGE_TAG}" -t "${REPO}:latest" backend
+          docker build -t "${REPO}:${IMAGE_TAG}" -t "${REPO}:latest" .
           docker push "${REPO}:${IMAGE_TAG}"
           docker push "${REPO}:latest"
 
