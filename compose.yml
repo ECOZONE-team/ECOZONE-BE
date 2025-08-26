@@ -27,7 +27,7 @@ services:
     image: redis/redisinsight:latest
     container_name: eco-redisinsight
     ports:
-      - "5540:5540"           # UI: http://localhost:5540
+      - "5540:5540"          
     volumes:
       - ./redisinsight-data:/data  
     depends_on:
@@ -36,10 +36,26 @@ services:
     networks:
       - oznetwork
 
-  api:
-    image: "${IMAGE}:${IMAGE_TAG}"  
-    container_name: ecozone-alpha-api
+ api:
+    image: 056445322590.dkr.ecr.ap-northeast-2.amazonaws.com/ecozone-alpha-api:latest
+    container_name: ecozone-api
     restart: always
     ports:
-      - "8080:8080"
-
+      - "80:8080"           # 외부 80 → 앱 8080
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # Spring이 컨테이너 내부에서 redis를 찾도록
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+      # application.yml을 외부 파일로 제공
+      - SPRING_CONFIG_LOCATION=file:/app/config/application.yml
+    volumes:
+      - /srv/app/application.yml:/app/config/application.yml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [oznetwork]
