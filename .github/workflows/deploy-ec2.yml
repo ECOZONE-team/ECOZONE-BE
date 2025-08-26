@@ -80,8 +80,16 @@ jobs:
       contents: read
 
     steps:
+     # ────────────────────────
+      # 7.  레포 체크아웃 
       # ────────────────────────
-      # 7️.  AWS 자격 증명 (OIDC)
+      - name: Checkout (for deploy)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          
+      # ────────────────────────
+      # 8.  AWS 자격 증명 (OIDC)
       # ────────────────────────
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -90,7 +98,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
     # ────────────────────────
-    # 8.  배포 (레포의 compose.yml + Secrets/application.yml)
+    # 9.  배포 (레포의 compose.yml + Secrets/application.yml)
     # ────────────────────────
       - name: Deploy via SSM
         id: ssm
@@ -179,7 +187,7 @@ jobs:
             echo "command_id=$(jq -r '.Command.CommandId' ssm.json)" >> $GITHUB_OUTPUT
 
       # ────────────────────────
-      # 9.  실행 로그 확인
+      # 10.  실행 로그 확인
       # ────────────────────────
       - name: Fetch SSM execution logs
         run: |
