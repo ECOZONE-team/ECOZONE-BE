@@ -90,6 +90,7 @@ jobs:
           REGION="${AWS_REGION}"
           REPO="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${ECR_REPO}"
           TAG="${IMAGE_TAG}"
+          APP_CONF=$(echo "${{ secrets.APPLICATION_YML }}" | base64 -w 0)
 
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
@@ -100,6 +101,8 @@ jobs:
               "aws ecr get-login-password --region '"${REGION}"' | docker login --username AWS --password-stdin '"${REPO%/*}"'",
               "docker pull '"${REPO}:${TAG}"'",
               "cd /srv/app || mkdir -p /srv/app && cd /srv/app",
+              "echo '"${APP_CONF}"' | base64 -d > ./application.yml",
+
               "export IMAGE=${REPO}",
               "export IMAGE_TAG=${TAG}",
               "docker compose --env-file /etc/app.env -f compose.yml pull",
