@@ -158,8 +158,8 @@ jobs:
             "bash -lc 'cd /srv/app && docker compose --env-file .env -f compose.yml up -d'"
       
             # 로그 수집
-            "bash -lc 'TS=$(date +%Y%m%d_%H%M%S); docker compose -f /srv/app/compose.yml logs --no-color > /srv/app/logs/compose_${TS}.log 2>&1 || true'"
-            "bash -lc 'TS=$(date +%Y%m%d_%H%M%S); docker logs ecozone-api --since 10m > /srv/app/logs/api_${TS}.log 2>&1 || true'"
+            "bash -lc 'TS=$(date +%Y%m%d_%H%M%S); docker compose -f /srv/app/compose.yml logs --no-color > /srv/app/logs/compose_\${TS}.log 2>&1 || true'"
+            "bash -lc 'TS=$(date +%Y%m%d_%H%M%S); docker logs ecozone-api --since 10m > /srv/app/logs/api_\${TS}.log 2>&1 || true'"
       
             # 상태 출력
             "bash -lc 'docker ps'"
