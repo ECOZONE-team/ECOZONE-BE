@@ -39,6 +39,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Debug compose file
+        run: |
+          echo "Repo root: $(pwd)"
+          ls -la
+          find . -maxdepth 2 -type f -name "*compose*.yml" -print
+
       # ────────────────────────
       # 3️.  AWS 자격 증명 (OIDC)
       # ────────────────────────
