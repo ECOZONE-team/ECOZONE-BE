@@ -6,6 +6,10 @@ WORKDIR /app
 COPY gradlew gradlew.bat settings.gradle build.gradle gradle/ ./
 RUN chmod +x gradlew
 
+# wrapper 파일을 명시적으로 복사 (dockerignore 우회)
+COPY gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.jar
+COPY gradle/wrapper/gradle-wrapper.properties gradle/wrapper/gradle-wrapper.properties
+
 # 소스 복사
 COPY src ./src
 
