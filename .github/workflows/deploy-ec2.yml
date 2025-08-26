@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: ap-northeast-2
+  AWS_REGION: ap-northeast-2a
   AWS_ACCOUNT_ID: "056445322590"
   ECR_REPO: ecozone-alpha-api
   IMAGE_TAG: ${{ github.sha }}
