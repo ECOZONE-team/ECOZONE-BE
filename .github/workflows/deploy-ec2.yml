@@ -106,7 +106,18 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       # ────────────────────────
-      # 7️.  EC2 대상에 SSM 명령 전송 (docker compose 배포)
+      # 7.  테스트로 인스턴스 ID로 직접 보내기
+      # ────────────────────────
+      - name : send Test to Instance ID
+        run: |
+          aws ssm send-command \
+          --region ap-northeast-2 \
+          --document-name "AWS-RunShellScript" \
+          --instance-ids i-02e6ebdf2218be79b \
+          --parameters commands='["echo hello from ssm","uname -a"]'
+
+      # ────────────────────────
+      # 8.  EC2 대상에 SSM 명령 전송 (docker compose 배포)
       # ────────────────────────
       - name: Send deploy command via SSM (docker compose)
         id: ssm
@@ -143,7 +154,7 @@ jobs:
           echo "command_id=${INVOCATION_ID}" >> $GITHUB_OUTPUT
 
       # ────────────────────────
-      # 8️.  SSM 완료 대기 (간단 체크)
+      # 9.  SSM 완료 대기 (간단 체크)
       # ────────────────────────
       - name: Wait for SSM completion
         run: |
