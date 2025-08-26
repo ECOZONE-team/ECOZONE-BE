@@ -130,40 +130,45 @@ jobs:
           else
             APP_B64=""
           fi
+
+          # 3) SSM commands.json 생성
+            CMDS=(
+            "bash -lc 'set -eux'"
+            "bash -lc 'command -v docker >/dev/null 2>&1 || { sudo apt-get update -y && sudo apt-get install -y docker.io docker-compose-plugin; }'"
+            "bash -lc 'if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q ^docker.service; then sudo systemctl enable --now docker; else sudo snap start --enable docker || true; fi'"
       
-          # 3) SSM commands.json 생성 (SSM은 /bin/sh라서 모든 명령을 bash -lc로 감쌈)
-          jq -n --arg ACCOUNT "$ACCOUNT" \
-                --arg REGION  "$REGION" \
-                --arg REPO    "$REPO" \
-                --arg TAG     "$TAG" \
-                --arg COMPB64 "$COMPOSE_B64" \
-                --arg APPB64  "$APP_B64" '
-          {commands: [
-            "bash -lc '\''set -eux'\''",
+            # ECR 로그인
+            "bash -lc 'aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com'"
       
-            "bash -lc '\''command -v docker >/dev/null 2>&1 || { sudo apt-get update -y && sudo apt-get install -y docker.io docker-compose-plugin; }'\''",
-            "bash -lc '\''if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q ^docker.service; then sudo systemctl enable --now docker; else sudo snap start --enable docker || true; fi'\''",
+            # 작업 디렉터리
+            "bash -lc 'sudo mkdir -p /srv/app/logs && cd /srv/app'"
       
-            "bash -lc \"aws ecr get-login-password --region \\(\$REGION) | docker login --username AWS --password-stdin \\(\$ACCOUNT).dkr.ecr.\\(\$REGION).amazonaws.com\"",
+            # compose.yml 복원
+            "bash -lc 'printf %s \"${COMPOSE_B64}\" | base64 -d > /srv/app/compose.yml'"
       
-            "bash -lc '\''sudo mkdir -p /srv/app/logs && cd /srv/app'\''",
+            # application.yml 복원(있으면)
+            "bash -lc 'printf %s \"${APP_B64}\" | base64 -d > /srv/app/application.yml || true'"
+            "bash -lc 'chmod 644 /srv/app/application.yml || true'"
       
-            "bash -lc \"printf %s \\\"\\(\\$COMPB64)\\\" | base64 -d > /srv/app/compose.yml\"",
-            "bash -lc \"printf %s \\\"\\(\\$APPB64)\\\" | base64 -d > /srv/app/application.yml || true\"",
-            "bash -lc '\''chmod 644 /srv/app/application.yml || true'\''",
+            # (옵션) compose가 변수 쓰면 .env 공급
+            "bash -lc 'printf \"IMAGE=%s\\nIMAGE_TAG=%s\\n\" \"${REPO}\" \"${TAG}\" > /srv/app/.env'"
       
-            "bash -lc 'printf \"IMAGE=%s\\nIMAGE_TAG=%s\\n\" \"\\(\\$REPO)\" \"\\(\\$TAG)\" > /srv/app/.env'",
+            # 배포
+            "bash -lc 'cd /srv/app && docker compose --env-file .env -f compose.yml pull || true'"
+            "bash -lc 'cd /srv/app && docker compose --env-file .env -f compose.yml up -d'"
       
-            "bash -lc '\''cd /srv/app && docker compose --env-file .env -f compose.yml pull || true'\''",
-            "bash -lc '\''cd /srv/app && docker compose --env-file .env -f compose.yml up -d'\''",
+            # 로그 수집
+            "bash -lc 'TS=$(date +%Y%m%d_%H%M%S); docker compose -f /srv/app/compose.yml logs --no-color > /srv/app/logs/compose_${TS}.log 2>&1 || true'"
+            "bash -lc 'TS=$(date +%Y%m%d_%H%M%S); docker logs ecozone-api --since 10m > /srv/app/logs/api_${TS}.log 2>&1 || true'"
       
-            "bash -lc '\''TS=$(date +%Y%m%d_%H%M%S); docker compose -f /srv/app/compose.yml logs --no-color > /srv/app/logs/compose_${TS}.log 2>&1 || true'\''",
-            "bash -lc '\''TS=$(date +%Y%m%d_%H%M%S); docker logs ecozone-api --since 10m > /srv/app/logs/api_${TS}.log 2>&1 || true'\''",
+            # 상태 출력
+            "bash -lc 'docker ps'"
+            "bash -lc 'ls -l /srv/app /srv/app/logs || true'"
+          )
       
-            "bash -lc '\''docker ps'\''",
-            "bash -lc '\''ls -l /srv/app /srv/app/logs || true'\''"
-          ]}' > commands.json
-      
+          # NUL 구분자로 직렬화해 jq로 JSON 변환
+          printf '%s\0' "${CMDS[@]}" | jq -Rs 'split("\u0000")[:-1] | {commands: .}' > commands.json
+
           # 4) SSM 실행
           aws ssm send-command \
             --region "$REGION" \
