@@ -119,7 +119,6 @@ jobs:
 
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
-            --comment "Deploy ${REPO}:${TAG}" \
             --targets '${{ env.SSM_TARGETS }}' \
             --parameters commands='[
               "set -e",
