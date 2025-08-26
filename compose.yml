@@ -8,13 +8,13 @@ services:
   redis:
     image: redis:alpine
     container_name: eco-redis
-    command: ["redis-server", "--appendonly", "yes"]   
+    command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"                                  
+      - "6379:6379"
     volumes:
-      - ./redis-data:/data                            
+      - ./redis-data:/data
     labels:
-      org.springframework.boot.service-connection: "redis" 
+      org.springframework.boot.service-connection: "redis"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -27,35 +27,34 @@ services:
     image: redis/redisinsight:latest
     container_name: eco-redisinsight
     ports:
-      - "5540:5540"          
+      - "5540:5540" # UI: http://<EC2>:5540
     volumes:
-      - ./redisinsight-data:/data  
+      - ./redisinsight-data:/data
     depends_on:
       redis:
         condition: service_healthy
     networks:
       - oznetwork
 
- api:
+  api:
     image: 056445322590.dkr.ecr.ap-northeast-2.amazonaws.com/ecozone-alpha-api:latest
     container_name: ecozone-api
     restart: always
     ports:
-      - "80:8080"           # 외부 80 → 앱 8080
+      - "80:8080" # 외부 80 → 컨테이너 8080
     depends_on:
       redis:
         condition: service_healthy
     environment:
-      # Spring이 컨테이너 내부에서 redis를 찾도록
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
-      # application.yml을 외부 파일로 제공
       - SPRING_CONFIG_LOCATION=file:/app/config/application.yml
     volumes:
       - /srv/app/application.yml:/app/config/application.yml:ro
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 10
-    networks: [oznetwork]
+    networks:
+      - oznetwork
