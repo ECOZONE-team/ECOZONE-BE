@@ -130,7 +130,7 @@ jobs:
 
           aws ssm send-command \
             --document-name "AWS-RunShellScript" \
-            --targets '${{ env.SSM_TARGETS }}' \
+            --instance-ids i-02e6ebdf2218be79b \
             --parameters commands='[
               "set -e",
               "aws ecr get-login-password --region '"${REGION}"' | docker login --username AWS --password-stdin '"${REPO%/*}"'",
