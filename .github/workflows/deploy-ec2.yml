@@ -141,17 +141,7 @@ jobs:
             "bash -lc 'aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com'"
             "bash -lc 'sudo mkdir -p /srv/app/logs && cd /srv/app'"
             # compose.yml 생성
-            "bash -lc 'printf \"%s\n\" \
-              \"services:\" \
-              \"  api:\" \
-              \"    image: ${REPO}:${TAG}\" \
-              \"    container_name: ecozone-api\" \
-              \"    restart: always\" \
-              \"    ports:\" \
-              \"      - 80:8080\" \
-              \"    volumes:\" \
-              \"      - /srv/app/application.yml:/app/config/application.yml:ro\" \
-              > /srv/app/compose.yml'"
+            "cp ./compose.yml /srv/app/compose.yml"
             # application.yml 저장
             "bash -lc 'echo ${APP_CONF} | base64 -d > /srv/app/application.yml'"
             # 배포
