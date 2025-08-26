@@ -102,6 +102,7 @@ jobs:
     # ────────────────────────
       - name: Deploy via SSM
         id: ssm
+        shell: bash
         env:
           ACCOUNT: ${{ env.AWS_ACCOUNT_ID }}
           REGION:  ${{ env.AWS_REGION }}
@@ -109,82 +110,72 @@ jobs:
           TAG:     ${{ env.IMAGE_TAG }}
           APP_YML: ${{ secrets.APPLICATION_YML || '' }}
         run: |
-            set -euo pipefail
-        
-            # 0) compose.yml 존재 확인 (절대경로)
-            if [ ! -f "$GITHUB_WORKSPACE/compose.yml" ]; then
-              echo "compose.yml not found at: $GITHUB_WORKSPACE/compose.yml"
-              echo "Found candidates:"
-              find "$GITHUB_WORKSPACE" -maxdepth 2 -type f \( -name "*compose*.yml" -o -name "*compose*.yaml" \) -print
-              exit 1
-            fi
-        
-            # 1) compose.yml → base64
-            COMPOSE_B64="$(base64 -w 0 < "$GITHUB_WORKSPACE/compose.yml")"
-        
-            # 2) application.yml → base64 (optional)
-            if [ -n "${APP_YML:-}" ]; then
-              APP_B64="$(printf '%s' "${APP_YML}" | base64 -w 0)"
-            else
-              APP_B64=""
-            fi
-        
-            # 3) SSM commands.json 생성 (SSM은 /bin/sh라서 bash -lc로 감쌈)
-            jq -n --arg ACCOUNT "$ACCOUNT" \
-                  --arg REGION  "$REGION" \
-                  --arg REPO    "$REPO" \
-                  --arg TAG     "$TAG" \
-                  --arg COMPB64 "$COMPOSE_B64" \
-                  --arg APPB64  "$APP_B64" '
-            {commands: [
-              "bash -lc '\''set -eux'\''",
-        
-              # Docker/compose 설치
-              "bash -lc '\''command -v docker >/dev/null 2>&1 || { sudo apt-get update -y && sudo apt-get install -y docker.io docker-compose-plugin; }'\''",
-        
-              # 데몬 기동 (systemd or snap)
-              "bash -lc '\''if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q ^docker.service; then sudo systemctl enable --now docker; else sudo snap start --enable docker || true; fi'\''",
-        
-              # ECR 로그인
-              "bash -lc \"aws ecr get-login-password --region \\(\$REGION) | docker login --username AWS --password-stdin \\(\$ACCOUNT).dkr.ecr.\\(\$REGION).amazonaws.com\"",
-        
-              # 작업 디렉터리
-              "bash -lc '\''sudo mkdir -p /srv/app/logs && cd /srv/app'\''",
-        
-              # 레포의 compose.yml 복원
-              "bash -lc \"printf %s \\\"\\(\\$COMPB64)\\\" | base64 -d > /srv/app/compose.yml\"",
-        
-              # application.yml 복원(있으면), 권한 부여
-              "bash -lc \"printf %s \\\"\\(\\$APPB64)\\\" | base64 -d > /srv/app/application.yml || true\"",
-              "bash -lc '\''chmod 644 /srv/app/application.yml || true'\''",
-        
-              # (옵션) compose가 ${IMAGE}, ${IMAGE_TAG} 사용 시를 대비해 .env 제공
-              "bash -lc 'printf \"IMAGE=%s\\nIMAGE_TAG=%s\\n\" \"\\(\\$REPO)\" \"\\(\\$TAG)\" > /srv/app/.env'",
-        
-              # 배포
-              "bash -lc '\''cd /srv/app && docker compose --env-file .env -f compose.yml pull || true'\''",
-              "bash -lc '\''cd /srv/app && docker compose --env-file .env -f compose.yml up -d'\''",
-        
-              # 로그 수집
-              "bash -lc '\''TS=$(date +%Y%m%d_%H%M%S); docker compose -f /srv/app/compose.yml logs --no-color > /srv/app/logs/compose_${TS}.log 2>&1 || true'\''",
-              "bash -lc '\''TS=$(date +%Y%m%d_%H%M%S); docker logs ecozone-api --since 10m > /srv/app/logs/api_${TS}.log 2>&1 || true'\''",
-        
-              # 상태 출력
-              "bash -lc '\''docker ps'\''",
-              "bash -lc '\''ls -l /srv/app /srv/app/logs || true'\''"
-            ]}' > commands.json
-        
-            # 4) SSM 실행
-            aws ssm send-command \
-              --region "$REGION" \
-              --document-name "AWS-RunShellScript" \
-              --instance-ids i-02e6ebdf2218be79b \
-              --parameters file://commands.json \
-              --timeout-seconds 1800 \
-              --output json > ssm.json
-        
-            cat ssm.json
-            echo "command_id=$(jq -r '.Command.CommandId' ssm.json)" >> $GITHUB_OUTPUT
+          set -euo pipefail
+      
+          # 0) compose.yml 존재 확인 (절대경로)
+          if [ ! -f "$GITHUB_WORKSPACE/compose.yml" ]; then
+            echo "compose.yml not found at: $GITHUB_WORKSPACE/compose.yml"
+            echo "Found candidates:"
+            find "$GITHUB_WORKSPACE" -maxdepth 2 -type f -name "*compose*.yml" -print || true
+            find "$GITHUB_WORKSPACE" -maxdepth 2 -type f -name "*compose*.yaml" -print || true
+            exit 1
+          fi
+      
+          # 1) compose.yml → base64
+          COMPOSE_B64="$(base64 -w 0 < "$GITHUB_WORKSPACE/compose.yml")"
+      
+          # 2) application.yml → base64 (optional)
+          if [ -n "${APP_YML:-}" ]; then
+            APP_B64="$(printf '%s' "${APP_YML}" | base64 -w 0)"
+          else
+            APP_B64=""
+          fi
+      
+          # 3) SSM commands.json 생성 (SSM은 /bin/sh라서 모든 명령을 bash -lc로 감쌈)
+          jq -n --arg ACCOUNT "$ACCOUNT" \
+                --arg REGION  "$REGION" \
+                --arg REPO    "$REPO" \
+                --arg TAG     "$TAG" \
+                --arg COMPB64 "$COMPOSE_B64" \
+                --arg APPB64  "$APP_B64" '
+          {commands: [
+            "bash -lc '\''set -eux'\''",
+      
+            "bash -lc '\''command -v docker >/dev/null 2>&1 || { sudo apt-get update -y && sudo apt-get install -y docker.io docker-compose-plugin; }'\''",
+            "bash -lc '\''if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q ^docker.service; then sudo systemctl enable --now docker; else sudo snap start --enable docker || true; fi'\''",
+      
+            "bash -lc \"aws ecr get-login-password --region \\(\$REGION) | docker login --username AWS --password-stdin \\(\$ACCOUNT).dkr.ecr.\\(\$REGION).amazonaws.com\"",
+      
+            "bash -lc '\''sudo mkdir -p /srv/app/logs && cd /srv/app'\''",
+      
+            "bash -lc \"printf %s \\\"\\(\\$COMPB64)\\\" | base64 -d > /srv/app/compose.yml\"",
+            "bash -lc \"printf %s \\\"\\(\\$APPB64)\\\" | base64 -d > /srv/app/application.yml || true\"",
+            "bash -lc '\''chmod 644 /srv/app/application.yml || true'\''",
+      
+            "bash -lc 'printf \"IMAGE=%s\\nIMAGE_TAG=%s\\n\" \"\\(\\$REPO)\" \"\\(\\$TAG)\" > /srv/app/.env'",
+      
+            "bash -lc '\''cd /srv/app && docker compose --env-file .env -f compose.yml pull || true'\''",
+            "bash -lc '\''cd /srv/app && docker compose --env-file .env -f compose.yml up -d'\''",
+      
+            "bash -lc '\''TS=$(date +%Y%m%d_%H%M%S); docker compose -f /srv/app/compose.yml logs --no-color > /srv/app/logs/compose_${TS}.log 2>&1 || true'\''",
+            "bash -lc '\''TS=$(date +%Y%m%d_%H%M%S); docker logs ecozone-api --since 10m > /srv/app/logs/api_${TS}.log 2>&1 || true'\''",
+      
+            "bash -lc '\''docker ps'\''",
+            "bash -lc '\''ls -l /srv/app /srv/app/logs || true'\''"
+          ]}' > commands.json
+      
+          # 4) SSM 실행
+          aws ssm send-command \
+            --region "$REGION" \
+            --document-name "AWS-RunShellScript" \
+            --instance-ids i-02e6ebdf2218be79b \
+            --parameters file://commands.json \
+            --timeout-seconds 1800 \
+            --output json > ssm.json
+      
+          cat ssm.json
+          echo "command_id=$(jq -r '.Command.CommandId' ssm.json)" >> $GITHUB_OUTPUT
+
 
       # ────────────────────────
       # 10.  실행 로그 확인
