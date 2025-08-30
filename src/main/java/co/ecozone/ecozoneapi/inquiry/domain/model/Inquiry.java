@@ -1,53 +1,54 @@
 package co.ecozone.ecozoneapi.inquiry.domain.model;
 
-import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.util.Objects;
 
-@Entity
-@Table(name = "inquiry")
-public class Inquiry {
+public final class Inquiry {
+    private final Long id;
+    private final Long companyIdx;
+    private final String companyName;
+    private final String name;
+    private final String phone;
+    private final String note;
+    private final Long createdBy;
+    private final boolean answered;
+    private final Instant createdAt;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long idx;
+    private Inquiry(Long id, Long companyIdx, String companyName, String name,
+                    String phone, String note, Long createdBy, boolean answered, Instant createdAt) {
+        this.id = id;
+        this.companyIdx = Objects.requireNonNull(companyIdx);
+        this.companyName = Objects.requireNonNull(companyName);
+        this.name = Objects.requireNonNull(name);
+        this.phone = Objects.requireNonNull(phone);
+        this.note = note;
+        this.createdBy = Objects.requireNonNull(createdBy);
+        this.answered = answered;
+        this.createdAt = Objects.requireNonNull(createdAt);
+    }
 
-    private Long companyIdx;
+    public static Inquiry create(Long companyIdx, String companyName, String name,
+                                 String phone, String note, Long createdBy, Instant now) {
+        return new Inquiry(null, companyIdx, companyName, name, phone, note, createdBy, false, now);
+    }
 
-    private LocalDateTime regDate = LocalDateTime.now();
+    public static Inquiry rehydrate(Long id, Long companyIdx, String companyName, String name,
+                                    String phone, String note, Long createdBy, boolean answered, Instant createdAt) {
+        return new Inquiry(id, companyIdx, companyName, name, phone, note, createdBy, answered, createdAt);
+    }
 
-    private String companyName;
+    public Inquiry markAsAnswered() {
+        if (answered) return this;
+        return new Inquiry(id, companyIdx, companyName, name, phone, note, createdBy, true, createdAt);
+    }
 
-    private String name;
-
-    private String phone;
-
-    @Column(length = 2000)
-    private String note;
-
-    private String createdBy; // JWT username 저장
-
-    // Getter/Setter
-    public Long getIdx() { return idx; }
-    public void setIdx(Long idx) { this.idx = idx; }
-
+    public Long getId() { return id; }
     public Long getCompanyIdx() { return companyIdx; }
-    public void setCompanyIdx(Long companyIdx) { this.companyIdx = companyIdx; }
-
-    public LocalDateTime getRegDate() { return regDate; }
-    public void setRegDate(LocalDateTime regDate) { this.regDate = regDate; }
-
     public String getCompanyName() { return companyName; }
-    public void setCompanyName(String companyName) { this.companyName = companyName; }
-
     public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-
     public String getPhone() { return phone; }
-    public void setPhone(String phone) { this.phone = phone; }
-
     public String getNote() { return note; }
-    public void setNote(String note) { this.note = note; }
-
-    public String getCreatedBy() { return createdBy; }
-    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+    public Long getCreatedBy() { return createdBy; }
+    public boolean isAnswered() { return answered; }
+    public Instant getCreatedAt() { return createdAt; }
 }
