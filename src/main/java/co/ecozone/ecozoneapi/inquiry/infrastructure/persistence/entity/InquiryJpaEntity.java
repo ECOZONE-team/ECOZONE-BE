@@ -1,5 +1,6 @@
 package co.ecozone.ecozoneapi.inquiry.infrastructure.persistence.entity;
 
+import co.ecozone.ecozoneapi.inquiry.domain.model.Inquiry;
 import jakarta.persistence.*;
 import java.time.Clock;
 import java.time.Instant;
@@ -39,9 +40,8 @@ public class InquiryJpaEntity {
 
     protected InquiryJpaEntity() {}
 
-    /** Clock을 사용해서 createdAt 자동 생성 */
     public static InquiryJpaEntity of(Long companyIdx, String companyName, String name, String phone,
-                                      String note, Long createdBy, Clock clock, boolean answered) {
+                                      String note, Long createdBy, boolean answered, Instant createdAt) {
         InquiryJpaEntity e = new InquiryJpaEntity();
         e.companyIdx = companyIdx;
         e.companyName = companyName;
@@ -50,12 +50,12 @@ public class InquiryJpaEntity {
         e.note = note;
         e.createdBy = createdBy;
         e.answered = answered;
-        e.createdAt = Instant.now(clock); // Clock 사용
+        e.createdAt = createdAt;
         return e;
     }
 
-    public co.ecozone.ecozoneapi.inquiry.domain.model.Inquiry toDomain() {
-        return co.ecozone.ecozoneapi.inquiry.domain.model.Inquiry.rehydrate(
+    public Inquiry toDomain() {
+        return Inquiry.rehydrate(
                 id, companyIdx, companyName, name, phone, note, createdBy, answered, createdAt
         );
     }

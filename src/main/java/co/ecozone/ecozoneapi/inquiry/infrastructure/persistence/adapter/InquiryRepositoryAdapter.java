@@ -31,9 +31,9 @@ public class InquiryRepositoryAdapter implements InquiryRepository {
                 inquiry.getPhone(),
                 inquiry.getNote(),
                 inquiry.getCreatedBy(),
-                clock,           // Clock 전달
-                inquiry.isAnswered()
-        );
+                inquiry.isAnswered(),
+                inquiry.getCreatedAt()
+                );
         return springData.save(entity).toDomain();
     }
 
