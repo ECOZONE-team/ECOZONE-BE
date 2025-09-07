@@ -16,13 +16,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class InquiryService {
 
     private final InquiryRepository repository;
     private final Clock clock;
 
+    @Transactional
     public InquiryDetail createInquiry(CreateInquiryCommand cmd) {
         Inquiry domain = Inquiry.create(cmd.companyIdx(), cmd.companyName(), cmd.name(),
                 cmd.phone(), cmd.note(), cmd.createdBy(), clock.instant());
@@ -30,13 +31,11 @@ public class InquiryService {
         return toDetail(saved);
     }
 
-    @Transactional(readOnly = true)
     public List<InquirySummary> listInquiries(Long requesterId, boolean isAdmin) {
         List<Inquiry> list = isAdmin ? repository.findAll() : repository.findByCreatedBy(requesterId);
         return list.stream().map(this::toSummary).collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
     public InquiryDetail getInquiry(Long id, Long requesterId, boolean isAdmin) {
         Inquiry inquiry = repository.findById(id)
                 .orElseThrow(() -> new InquiryNotFoundException("Inquiry not found: " + id));
@@ -45,6 +44,7 @@ public class InquiryService {
         return toDetail(inquiry);
     }
 
+    @Transactional
     public InquiryDetail markAsAnswered(Long id, Long requesterId, boolean isAdmin) {
         if (!isAdmin)
             throw new InquiryAccessDeniedException("Only ADMIN can mark as answered: " + id);
