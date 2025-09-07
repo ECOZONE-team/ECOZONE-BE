@@ -7,6 +7,7 @@ import co.ecozone.ecozoneapi.inquiry.application.exception.InquiryAccessDeniedEx
 import co.ecozone.ecozoneapi.inquiry.application.exception.InquiryNotFoundException;
 import co.ecozone.ecozoneapi.inquiry.application.port.out.InquiryRepository;
 import co.ecozone.ecozoneapi.inquiry.domain.model.Inquiry;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,15 +17,11 @@ import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class InquiryService {
 
     private final InquiryRepository repository;
     private final Clock clock;
-
-    public InquiryService(InquiryRepository repository, Clock clock) {
-        this.repository = repository;
-        this.clock = clock;
-    }
 
     public InquiryDetail createInquiry(CreateInquiryCommand cmd) {
         Inquiry domain = Inquiry.create(cmd.companyIdx(), cmd.companyName(), cmd.name(),

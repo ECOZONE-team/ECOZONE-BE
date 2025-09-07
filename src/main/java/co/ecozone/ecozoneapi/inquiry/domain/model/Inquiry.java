@@ -1,8 +1,11 @@
 package co.ecozone.ecozoneapi.inquiry.domain.model;
 
+import lombok.Getter;
+
 import java.time.Instant;
 import java.util.Objects;
 
+@Getter
 public final class Inquiry {
     private final Long id;
     private final Long companyIdx;
@@ -41,14 +44,4 @@ public final class Inquiry {
         if (answered) return this;
         return new Inquiry(id, companyIdx, companyName, name, phone, note, createdBy, true, createdAt);
     }
-
-    public Long getId() { return id; }
-    public Long getCompanyIdx() { return companyIdx; }
-    public String getCompanyName() { return companyName; }
-    public String getName() { return name; }
-    public String getPhone() { return phone; }
-    public String getNote() { return note; }
-    public Long getCreatedBy() { return createdBy; }
-    public boolean isAnswered() { return answered; }
-    public Instant getCreatedAt() { return createdAt; }
 }
