@@ -12,6 +12,9 @@ import co.ecozone.ecozoneapi.auth.domain.model.security.http.AccessRule;
 import co.ecozone.ecozoneapi.auth.domain.model.security.http.EndPointPattern;
 import co.ecozone.ecozoneapi.auth.infrastructure.security.filter.JwtAuthenticationFilter;
 import co.ecozone.ecozoneapi.auth.infrastructure.security.jwt.JwtProperties;
+import co.ecozone.ecozoneapi.platform.web.error.JsonAccessDeniedHandler;
+import co.ecozone.ecozoneapi.platform.web.error.JsonAuthenticationEntryPoint;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -55,6 +58,7 @@ public class SecurityConfig {
     private final TokenRevocationStore revocationStore;
     private final SecurityPolicyFactory policyFactory;
     private final CorsPolicyFactory corsPolicyFactory;
+    private final ObjectMapper om;
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
@@ -105,7 +109,12 @@ public class SecurityConfig {
                     // 2. 남는 모든 건 차단 (화이트리스트 방식)
                     reg.anyRequest().authenticated();
                 })
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(h -> h
+                        .authenticationEntryPoint(new JsonAuthenticationEntryPoint(om))
+                        .accessDeniedHandler(new JsonAccessDeniedHandler(om))
+                );
+        ;
 
         return http.build();
     }
