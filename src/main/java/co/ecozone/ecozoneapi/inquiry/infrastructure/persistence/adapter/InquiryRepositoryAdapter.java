@@ -24,16 +24,7 @@ public class InquiryRepositoryAdapter implements InquiryRepository {
 
     @Override
     public Inquiry save(Inquiry inquiry) {
-        InquiryJpaEntity entity = InquiryJpaEntity.of(
-                inquiry.getCompanyIdx(),
-                inquiry.getCompanyName(),
-                inquiry.getName(),
-                inquiry.getPhone(),
-                inquiry.getNote(),
-                inquiry.getCreatedBy(),
-                inquiry.isAnswered(),
-                inquiry.getCreatedAt()
-                );
+        InquiryJpaEntity entity = InquiryJpaEntity.fromDomain(inquiry);
         return springData.save(entity).toDomain();
     }
 

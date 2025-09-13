@@ -1,6 +1,7 @@
 package co.ecozone.ecozoneapi.inquiry.application.service;
 
 import co.ecozone.ecozoneapi.inquiry.application.command.CreateInquiryCommand;
+import co.ecozone.ecozoneapi.inquiry.application.command.UpdateInquiryCommand;
 import co.ecozone.ecozoneapi.inquiry.application.dto.InquiryDetail;
 import co.ecozone.ecozoneapi.inquiry.application.dto.InquirySummary;
 import co.ecozone.ecozoneapi.inquiry.application.exception.InquiryAccessDeniedException;
@@ -52,6 +53,21 @@ public class InquiryService {
                 .orElseThrow(() -> new InquiryNotFoundException("Inquiry not found: " + id));
         Inquiry saved = repository.save(inquiry.markAsAnswered());
         return toDetail(saved);
+    }
+
+    @Transactional
+    public InquiryDetail updateInquiry(UpdateInquiryCommand cmd, Long requesterId) {
+        Inquiry inquiry = repository.findById(cmd.id())
+                .orElseThrow(() -> new InquiryNotFoundException("Inquiry not found: " + cmd.id()));
+
+        if (!inquiry.getCreatedBy().equals(requesterId)) {
+            throw new InquiryAccessDeniedException("Only the creator can update this inquiry: " + cmd.id());
+        }
+
+        Inquiry updated = repository.save(
+                inquiry.update(cmd.name(), cmd.phone(), cmd.note())
+        );
+        return toDetail(updated);
     }
 
     private InquirySummary toSummary(Inquiry i) {

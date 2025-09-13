@@ -44,4 +44,18 @@ public final class Inquiry {
         if (answered) return this;
         return new Inquiry(id, companyIdx, companyName, name, phone, note, createdBy, true, createdAt);
     }
+
+    public Inquiry update(String name, String phone, String note) {
+        return new Inquiry(
+                this.id,
+                this.companyIdx,
+                this.companyName,
+                name != null ? name : this.name,
+                phone != null ? phone : this.phone,
+                note != null ? note : this.note,
+                this.createdBy,
+                this.answered,
+                this.createdAt
+        );
+    }
 }

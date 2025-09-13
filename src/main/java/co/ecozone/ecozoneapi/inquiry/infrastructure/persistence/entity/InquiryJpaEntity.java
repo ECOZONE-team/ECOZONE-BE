@@ -2,7 +2,6 @@ package co.ecozone.ecozoneapi.inquiry.infrastructure.persistence.entity;
 
 import co.ecozone.ecozoneapi.inquiry.domain.model.Inquiry;
 import jakarta.persistence.*;
-import java.time.Clock;
 import java.time.Instant;
 
 @Entity
@@ -40,17 +39,17 @@ public class InquiryJpaEntity {
 
     protected InquiryJpaEntity() {}
 
-    public static InquiryJpaEntity of(Long companyIdx, String companyName, String name, String phone,
-                                      String note, Long createdBy, boolean answered, Instant createdAt) {
+    public static InquiryJpaEntity fromDomain(Inquiry inquiry) {
         InquiryJpaEntity e = new InquiryJpaEntity();
-        e.companyIdx = companyIdx;
-        e.companyName = companyName;
-        e.name = name;
-        e.phone = phone;
-        e.note = note;
-        e.createdBy = createdBy;
-        e.answered = answered;
-        e.createdAt = createdAt;
+        e.id = inquiry.getId();
+        e.companyIdx = inquiry.getCompanyIdx();
+        e.companyName = inquiry.getCompanyName();
+        e.name = inquiry.getName();
+        e.phone = inquiry.getPhone();
+        e.note = inquiry.getNote();
+        e.createdBy = inquiry.getCreatedBy();
+        e.answered = inquiry.isAnswered();
+        e.createdAt = inquiry.getCreatedAt();
         return e;
     }
 

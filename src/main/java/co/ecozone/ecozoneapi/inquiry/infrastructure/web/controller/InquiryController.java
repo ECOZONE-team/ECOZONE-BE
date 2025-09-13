@@ -2,6 +2,7 @@ package co.ecozone.ecozoneapi.inquiry.infrastructure.web.controller;
 
 import co.ecozone.ecozoneapi.auth.infrastructure.security.JwtPrincipal;
 import co.ecozone.ecozoneapi.inquiry.application.command.CreateInquiryCommand;
+import co.ecozone.ecozoneapi.inquiry.application.command.UpdateInquiryCommand;
 import co.ecozone.ecozoneapi.inquiry.application.dto.InquiryDetail;
 import co.ecozone.ecozoneapi.inquiry.application.dto.InquirySummary;
 import co.ecozone.ecozoneapi.inquiry.application.service.InquiryService;
@@ -78,6 +79,26 @@ public class InquiryController {
         boolean isAdmin = principal.roles().contains(Role.ADMIN);
         InquiryDetail detail = service.markAsAnswered(id, principal.userId().value(), isAdmin);
 
+        InquiryDetailResponse response = mapper.toResponse(detail);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<InquiryDetailResponse> update(
+            @PathVariable Long id,
+            @RequestBody InquiryUpdateRequest req,
+            @AuthenticationPrincipal JwtPrincipal principal) {
+
+        UpdateInquiryCommand cmd = new UpdateInquiryCommand(
+                id,
+                null,
+                req.name(),
+                req.phone(),
+                req.note(),
+                principal.userId().value()
+        );
+
+        InquiryDetail detail = service.updateInquiry(cmd, principal.userId().value());
         InquiryDetailResponse response = mapper.toResponse(detail);
         return ResponseEntity.ok(response);
     }
