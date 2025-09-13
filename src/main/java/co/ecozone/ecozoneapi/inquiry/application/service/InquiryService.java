@@ -40,17 +40,19 @@ public class InquiryService {
     public InquiryDetail getInquiry(Long id, Long requesterId, boolean isAdmin) {
         Inquiry inquiry = repository.findById(id)
                 .orElseThrow(() -> new InquiryNotFoundException("Inquiry not found: " + id));
-        if (!isAdmin && !inquiry.getCreatedBy().equals(requesterId))
+
+        if (!isAdmin && !inquiry.getCreatedBy().equals(requesterId)) {
             throw new InquiryAccessDeniedException("Access denied: " + id);
+        }
+
         return toDetail(inquiry);
     }
 
     @Transactional
-    public InquiryDetail markAsAnswered(Long id, Long requesterId, boolean isAdmin) {
-        if (!isAdmin)
-            throw new InquiryAccessDeniedException("Only ADMIN can mark as answered: " + id);
+    public InquiryDetail markAsAnswered(Long id, Long requesterId) {
         Inquiry inquiry = repository.findById(id)
                 .orElseThrow(() -> new InquiryNotFoundException("Inquiry not found: " + id));
+
         Inquiry saved = repository.save(inquiry.markAsAnswered());
         return toDetail(saved);
     }

@@ -6,11 +6,14 @@ import co.ecozone.ecozoneapi.inquiry.application.command.UpdateInquiryCommand;
 import co.ecozone.ecozoneapi.inquiry.application.dto.InquiryDetail;
 import co.ecozone.ecozoneapi.inquiry.application.dto.InquirySummary;
 import co.ecozone.ecozoneapi.inquiry.application.service.InquiryService;
-import co.ecozone.ecozoneapi.inquiry.infrastructure.web.dto.*;
+import co.ecozone.ecozoneapi.inquiry.infrastructure.web.dto.InquiryCreateRequest;
+import co.ecozone.ecozoneapi.inquiry.infrastructure.web.dto.InquiryDetailResponse;
+import co.ecozone.ecozoneapi.inquiry.infrastructure.web.dto.InquiryListResponse;
+import co.ecozone.ecozoneapi.inquiry.infrastructure.web.dto.InquiryUpdateRequest;
 import co.ecozone.ecozoneapi.inquiry.infrastructure.web.mapper.InquiryApiMapper;
-import co.ecozone.ecozoneapi.auth.domain.model.security.Role;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -28,6 +31,7 @@ public class InquiryController {
     private final InquiryApiMapper mapper;
 
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<InquiryDetailResponse> create(
             @RequestBody InquiryCreateRequest req,
             @AuthenticationPrincipal JwtPrincipal principal) {
@@ -46,12 +50,12 @@ public class InquiryController {
     }
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<InquiryListResponse>> list(
             @AuthenticationPrincipal JwtPrincipal principal) {
 
-        boolean isAdmin = principal.roles().contains(Role.ADMIN);
+        boolean isAdmin = principal.roles().contains("ADMIN"); // ADMIN 여부 확인
         List<InquirySummary> summaries = service.listInquiries(principal.userId().value(), isAdmin);
-
         List<InquiryListResponse> responseList = summaries.stream()
                 .map(mapper::toResponse)
                 .collect(Collectors.toList());
@@ -60,30 +64,30 @@ public class InquiryController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<InquiryDetailResponse> get(
             @PathVariable Long id,
             @AuthenticationPrincipal JwtPrincipal principal) {
 
-        boolean isAdmin = principal.roles().contains(Role.ADMIN);
+        boolean isAdmin = principal.roles().contains("ADMIN");
         InquiryDetail detail = service.getInquiry(id, principal.userId().value(), isAdmin);
-
         InquiryDetailResponse response = mapper.toResponse(detail);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{id}/answer")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<InquiryDetailResponse> answer(
             @PathVariable Long id,
             @AuthenticationPrincipal JwtPrincipal principal) {
 
-        boolean isAdmin = principal.roles().contains(Role.ADMIN);
-        InquiryDetail detail = service.markAsAnswered(id, principal.userId().value(), isAdmin);
-
+        InquiryDetail detail = service.markAsAnswered(id, principal.userId().value());
         InquiryDetailResponse response = mapper.toResponse(detail);
         return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<InquiryDetailResponse> update(
             @PathVariable Long id,
             @RequestBody InquiryUpdateRequest req,
