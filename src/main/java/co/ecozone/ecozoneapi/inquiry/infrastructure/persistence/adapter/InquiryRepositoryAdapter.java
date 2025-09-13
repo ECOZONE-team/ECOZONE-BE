@@ -4,6 +4,7 @@ import co.ecozone.ecozoneapi.inquiry.application.port.out.InquiryRepository;
 import co.ecozone.ecozoneapi.inquiry.domain.model.Inquiry;
 import co.ecozone.ecozoneapi.inquiry.infrastructure.persistence.entity.InquiryJpaEntity;
 import co.ecozone.ecozoneapi.inquiry.infrastructure.persistence.repository.SpringDataInquiryJpaRepository;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
@@ -34,13 +35,18 @@ public class InquiryRepositoryAdapter implements InquiryRepository {
     }
 
     @Override
-    public List<Inquiry> findByCreatedBy(Long createdBy) {
-        return springData.findByCreatedBy(createdBy)
-                .stream().map(InquiryJpaEntity::toDomain).collect(Collectors.toList());
+    public List<Inquiry> findByCreatedBy(Long createdBy, Pageable pageable) {
+        return springData.findByCreatedBy(createdBy, pageable)
+                .stream()
+                .map(InquiryJpaEntity::toDomain)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public List<Inquiry> findAll() {
-        return springData.findAll().stream().map(InquiryJpaEntity::toDomain).collect(Collectors.toList());
+    public List<Inquiry> findAll(Pageable pageable) {
+        return springData.findAll(pageable)
+                .stream()
+                .map(InquiryJpaEntity::toDomain)
+                .collect(Collectors.toList());
     }
 }

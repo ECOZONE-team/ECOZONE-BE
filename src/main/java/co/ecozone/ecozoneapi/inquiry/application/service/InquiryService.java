@@ -9,6 +9,9 @@ import co.ecozone.ecozoneapi.inquiry.application.exception.InquiryNotFoundExcept
 import co.ecozone.ecozoneapi.inquiry.application.port.out.InquiryRepository;
 import co.ecozone.ecozoneapi.inquiry.domain.model.Inquiry;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,9 +35,16 @@ public class InquiryService {
         return toDetail(saved);
     }
 
-    public List<InquirySummary> listInquiries(Long requesterId, boolean isAdmin) {
-        List<Inquiry> list = isAdmin ? repository.findAll() : repository.findByCreatedBy(requesterId);
-        return list.stream().map(this::toSummary).collect(Collectors.toList());
+    public Page<InquirySummary> listInquiries(Long requesterId, boolean isAdmin, Pageable pageable) {
+        List<Inquiry> list = isAdmin
+                ? repository.findAll(pageable)
+                : repository.findByCreatedBy(requesterId, pageable);
+
+        List<InquirySummary> summaries = list.stream()
+                .map(this::toSummary)
+                .collect(Collectors.toList());
+
+        return new PageImpl<>(summaries, pageable, summaries.size());
     }
 
     public InquiryDetail getInquiry(Long id, Long requesterId, boolean isAdmin) {

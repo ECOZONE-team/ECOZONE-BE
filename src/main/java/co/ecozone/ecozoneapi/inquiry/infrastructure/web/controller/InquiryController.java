@@ -12,6 +12,9 @@ import co.ecozone.ecozoneapi.inquiry.infrastructure.web.dto.InquiryListResponse;
 import co.ecozone.ecozoneapi.inquiry.infrastructure.web.dto.InquiryUpdateRequest;
 import co.ecozone.ecozoneapi.inquiry.infrastructure.web.mapper.InquiryApiMapper;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -52,10 +55,14 @@ public class InquiryController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<InquiryListResponse>> list(
-            @AuthenticationPrincipal JwtPrincipal principal) {
+            @AuthenticationPrincipal JwtPrincipal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
-        boolean isAdmin = principal.roles().contains("ADMIN"); // ADMIN 여부 확인
-        List<InquirySummary> summaries = service.listInquiries(principal.userId().value(), isAdmin);
+        boolean isAdmin = principal.roles().contains("ADMIN");
+        Pageable pageable = PageRequest.of(page, size);
+        Page<InquirySummary> summaries = service.listInquiries(principal.userId().value(), isAdmin, pageable);
+
         List<InquiryListResponse> responseList = summaries.stream()
                 .map(mapper::toResponse)
                 .collect(Collectors.toList());
