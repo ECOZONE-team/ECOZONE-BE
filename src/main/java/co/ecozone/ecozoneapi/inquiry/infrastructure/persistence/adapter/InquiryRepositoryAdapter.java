@@ -2,12 +2,11 @@ package co.ecozone.ecozoneapi.inquiry.infrastructure.persistence.adapter;
 
 import co.ecozone.ecozoneapi.inquiry.application.port.out.InquiryRepository;
 import co.ecozone.ecozoneapi.inquiry.domain.model.Inquiry;
-import co.ecozone.ecozoneapi.inquiry.infrastructure.persistence.entity.InquiryJpaEntity;
+import co.ecozone.ecozoneapi.inquiry.infrastructure.persistence.mapper.InquiryJpaMapper;
 import co.ecozone.ecozoneapi.inquiry.infrastructure.persistence.repository.SpringDataInquiryJpaRepository;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -16,37 +15,40 @@ import java.util.stream.Collectors;
 public class InquiryRepositoryAdapter implements InquiryRepository {
 
     private final SpringDataInquiryJpaRepository springData;
-    private final Clock clock;
+    private final InquiryJpaMapper mapper;
 
-    public InquiryRepositoryAdapter(SpringDataInquiryJpaRepository springData, Clock clock) {
+    public InquiryRepositoryAdapter(SpringDataInquiryJpaRepository springData, InquiryJpaMapper mapper) {
         this.springData = springData;
-        this.clock = clock;
+        this.mapper = mapper;
     }
 
     @Override
     public Inquiry save(Inquiry inquiry) {
-        InquiryJpaEntity entity = InquiryJpaEntity.fromDomain(inquiry);
-        return springData.save(entity).toDomain();
+        return mapper.toDomain(
+                springData.save(mapper.toEntity(inquiry))
+        );
     }
 
     @Override
     public Optional<Inquiry> findById(Long id) {
-        return springData.findById(id).map(InquiryJpaEntity::toDomain);
+        return springData.findById(id).map(mapper::toDomain);
     }
 
     @Override
     public List<Inquiry> findByCreatedBy(Long createdBy, Pageable pageable) {
         return springData.findByCreatedBy(createdBy, pageable)
+                .getContent()
                 .stream()
-                .map(InquiryJpaEntity::toDomain)
+                .map(mapper::toDomain)
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<Inquiry> findAll(Pageable pageable) {
         return springData.findAll(pageable)
+                .getContent()
                 .stream()
-                .map(InquiryJpaEntity::toDomain)
+                .map(mapper::toDomain)
                 .collect(Collectors.toList());
     }
 }

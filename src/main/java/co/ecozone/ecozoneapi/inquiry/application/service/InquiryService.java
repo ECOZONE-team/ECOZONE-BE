@@ -29,32 +29,35 @@ public class InquiryService {
 
     @Transactional
     public InquiryDetail createInquiry(CreateInquiryCommand cmd) {
-        Inquiry domain = Inquiry.create(cmd.companyIdx(), cmd.companyName(), cmd.name(),
-                cmd.phone(), cmd.note(), cmd.createdBy(), clock.instant());
+        Inquiry domain = Inquiry.create(
+                cmd.companyIdx(),
+                cmd.companyName(),
+                cmd.name(),
+                cmd.phone(),
+                cmd.note(),
+                cmd.createdBy(),
+                clock.instant()
+        );
         Inquiry saved = repository.save(domain);
         return toDetail(saved);
     }
 
     public Page<InquirySummary> listInquiries(Long requesterId, boolean isAdmin, Pageable pageable) {
-        List<Inquiry> list = isAdmin
-                ? repository.findAll(pageable)
-                : repository.findByCreatedBy(requesterId, pageable);
-
+        List<Inquiry> list = isAdmin ?
+                repository.findAll(pageable) :
+                repository.findByCreatedBy(requesterId, pageable);
         List<InquirySummary> summaries = list.stream()
                 .map(this::toSummary)
                 .collect(Collectors.toList());
-
         return new PageImpl<>(summaries, pageable, summaries.size());
     }
 
     public InquiryDetail getInquiry(Long id, Long requesterId, boolean isAdmin) {
         Inquiry inquiry = repository.findById(id)
                 .orElseThrow(() -> new InquiryNotFoundException("Inquiry not found: " + id));
-
         if (!isAdmin && !inquiry.getCreatedBy().equals(requesterId)) {
             throw new InquiryAccessDeniedException("Access denied: " + id);
         }
-
         return toDetail(inquiry);
     }
 
@@ -62,8 +65,8 @@ public class InquiryService {
     public InquiryDetail markAsAnswered(Long id, Long requesterId) {
         Inquiry inquiry = repository.findById(id)
                 .orElseThrow(() -> new InquiryNotFoundException("Inquiry not found: " + id));
-
-        Inquiry saved = repository.save(inquiry.markAsAnswered());
+        Inquiry updated = inquiry.markAsAnswered();
+        Inquiry saved = repository.save(updated);
         return toDetail(saved);
     }
 
@@ -76,10 +79,9 @@ public class InquiryService {
             throw new InquiryAccessDeniedException("Only the creator can update this inquiry: " + cmd.id());
         }
 
-        Inquiry updated = repository.save(
-                inquiry.update(cmd.name(), cmd.phone(), cmd.note())
-        );
-        return toDetail(updated);
+        Inquiry updated = inquiry.update(cmd.name(), cmd.phone(), cmd.note());
+        Inquiry saved = repository.save(updated);
+        return toDetail(saved);
     }
 
     private InquirySummary toSummary(Inquiry i) {
@@ -87,7 +89,15 @@ public class InquiryService {
     }
 
     private InquiryDetail toDetail(Inquiry i) {
-        return new InquiryDetail(i.getId(), i.getCompanyIdx(), i.getCompanyName(),
-                i.getName(), i.getPhone(), i.getNote(), i.isAnswered(), i.getCreatedAt());
+        return new InquiryDetail(
+                i.getId(),
+                i.getCompanyIdx(),
+                i.getCompanyName(),
+                i.getName(),
+                i.getPhone(),
+                i.getNote(),
+                i.isAnswered(),
+                i.getCreatedAt()
+        );
     }
 }

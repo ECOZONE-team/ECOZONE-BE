@@ -2,8 +2,11 @@ package co.ecozone.ecozoneapi.inquiry.infrastructure.persistence.entity;
 
 import co.ecozone.ecozoneapi.inquiry.domain.model.Inquiry;
 import jakarta.persistence.*;
+import lombok.Getter;
+
 import java.time.Instant;
 
+@Getter
 @Entity
 @Table(name = "inquiry")
 public class InquiryJpaEntity {
@@ -39,23 +42,33 @@ public class InquiryJpaEntity {
 
     protected InquiryJpaEntity() {}
 
-    public static InquiryJpaEntity fromDomain(Inquiry inquiry) {
+    public static InquiryJpaEntity of(Long companyIdx, String companyName, String name,
+                                      String phone, String note, Long createdBy, Instant createdAt) {
         InquiryJpaEntity e = new InquiryJpaEntity();
-        e.id = inquiry.getId();
-        e.companyIdx = inquiry.getCompanyIdx();
-        e.companyName = inquiry.getCompanyName();
-        e.name = inquiry.getName();
-        e.phone = inquiry.getPhone();
-        e.note = inquiry.getNote();
-        e.createdBy = inquiry.getCreatedBy();
-        e.answered = inquiry.isAnswered();
-        e.createdAt = inquiry.getCreatedAt();
+        e.companyIdx = companyIdx;
+        e.companyName = companyName;
+        e.name = name;
+        e.phone = phone;
+        e.note = note;
+        e.createdBy = createdBy;
+        e.answered = false;
+        e.createdAt = createdAt;
         return e;
     }
 
-    public Inquiry toDomain() {
-        return Inquiry.rehydrate(
-                id, companyIdx, companyName, name, phone, note, createdBy, answered, createdAt
-        );
+    public static InquiryJpaEntity rehydrate(Long id, Long companyIdx, String companyName,
+                                             String name, String phone, String note,
+                                             Long createdBy, boolean answered, Instant createdAt) {
+        InquiryJpaEntity e = new InquiryJpaEntity();
+        e.id = id;
+        e.companyIdx = companyIdx;
+        e.companyName = companyName;
+        e.name = name;
+        e.phone = phone;
+        e.note = note;
+        e.createdBy = createdBy;
+        e.answered = answered;
+        e.createdAt = createdAt;
+        return e;
     }
 }
