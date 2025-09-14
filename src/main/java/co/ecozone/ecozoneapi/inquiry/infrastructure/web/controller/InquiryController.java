@@ -19,6 +19,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,7 +35,7 @@ public class InquiryController {
     @PostMapping
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<InquiryDetailResponse> create(
-            @RequestBody InquiryCreateRequest req,
+            @RequestBody @Valid InquiryCreateRequest req,
             @AuthenticationPrincipal JwtPrincipal principal) {
 
         CreateInquiryCommand cmd = mapper.toCommand(req, principal.userId().value());
@@ -98,7 +99,7 @@ public class InquiryController {
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<InquiryDetailResponse> update(
             @PathVariable Long id,
-            @RequestBody InquiryUpdateRequest req,
+            @RequestBody @Valid InquiryUpdateRequest req,
             @AuthenticationPrincipal JwtPrincipal principal) {
 
         UpdateInquiryCommand cmd = new UpdateInquiryCommand(

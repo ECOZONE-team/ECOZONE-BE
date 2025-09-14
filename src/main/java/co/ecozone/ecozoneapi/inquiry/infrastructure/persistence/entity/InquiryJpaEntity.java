@@ -1,9 +1,7 @@
 package co.ecozone.ecozoneapi.inquiry.infrastructure.persistence.entity;
 
-import co.ecozone.ecozoneapi.inquiry.domain.model.Inquiry;
 import jakarta.persistence.*;
 import lombok.Getter;
-
 import java.time.Instant;
 
 @Getter

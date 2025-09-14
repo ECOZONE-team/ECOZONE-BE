@@ -7,6 +7,7 @@ import java.util.Objects;
 
 @Getter
 public final class Inquiry {
+
     private final Long id;
     private final Long companyIdx;
     private final String companyName;
@@ -19,15 +20,23 @@ public final class Inquiry {
 
     private Inquiry(Long id, Long companyIdx, String companyName, String name,
                     String phone, String note, Long createdBy, boolean answered, Instant createdAt) {
+
+        if (companyIdx == null) throw new IllegalArgumentException("companyIdx is required.");
+        if (companyName == null || companyName.isBlank()) throw new IllegalArgumentException("companyName is required.");
+        if (name == null || name.isBlank()) throw new IllegalArgumentException("name is required.");
+        if (phone == null || phone.isBlank()) throw new IllegalArgumentException("phone is required.");
+        if (createdBy == null) throw new IllegalArgumentException("createdBy is required.");
+        if (createdAt == null) throw new IllegalArgumentException("createdAt is required.");
+
         this.id = id;
-        this.companyIdx = Objects.requireNonNull(companyIdx);
-        this.companyName = Objects.requireNonNull(companyName);
-        this.name = Objects.requireNonNull(name);
-        this.phone = Objects.requireNonNull(phone);
+        this.companyIdx = companyIdx;
+        this.companyName = companyName;
+        this.name = name;
+        this.phone = phone;
         this.note = note;
-        this.createdBy = Objects.requireNonNull(createdBy);
+        this.createdBy = createdBy;
         this.answered = answered;
-        this.createdAt = Objects.requireNonNull(createdAt);
+        this.createdAt = createdAt;
     }
 
     public static Inquiry create(Long companyIdx, String companyName, String name,
@@ -46,12 +55,14 @@ public final class Inquiry {
     }
 
     public Inquiry update(String name, String phone, String note) {
+        if (name == null || name.isBlank()) throw new IllegalArgumentException("name is required.");
+        if (phone == null || phone.isBlank()) throw new IllegalArgumentException("phone is required.");
         return new Inquiry(
                 this.id,
                 this.companyIdx,
                 this.companyName,
-                name != null ? name : this.name,
-                phone != null ? phone : this.phone,
+                name,
+                phone,
                 note != null ? note : this.note,
                 this.createdBy,
                 this.answered,
