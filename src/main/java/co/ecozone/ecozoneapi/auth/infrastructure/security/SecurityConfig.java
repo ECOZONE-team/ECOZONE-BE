@@ -12,6 +12,7 @@ import co.ecozone.ecozoneapi.auth.domain.model.security.http.AccessRule;
 import co.ecozone.ecozoneapi.auth.domain.model.security.http.EndPointPattern;
 import co.ecozone.ecozoneapi.auth.infrastructure.security.filter.JwtAuthenticationFilter;
 import co.ecozone.ecozoneapi.auth.infrastructure.security.jwt.JwtProperties;
+import co.ecozone.ecozoneapi.payment.infrastructure.PaymentProperties;
 import co.ecozone.ecozoneapi.platform.web.error.JsonAccessDeniedHandler;
 import co.ecozone.ecozoneapi.platform.web.error.JsonAuthenticationEntryPoint;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,7 +51,8 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 @EnableConfigurationProperties({
         SecurityRouteProperties.class,
         CorsProperties.class,
-        JwtProperties.class
+        JwtProperties.class,
+        PaymentProperties.class
 })
 public class SecurityConfig {
 

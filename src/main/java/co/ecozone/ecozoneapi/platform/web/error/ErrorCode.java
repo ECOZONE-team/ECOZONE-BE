@@ -26,6 +26,12 @@ public enum ErrorCode {
     UNSUPPORTED_MEDIA("COMMON-UNSUPPORTED-MEDIA", HttpStatus.UNSUPPORTED_MEDIA_TYPE, "지원하지 않는 Content-Type 입니다.", "error.common.unsupportedMedia"),
     INTERNAL_ERROR("COMMON-INTERNAL", HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.", "error.common.internal"),
 
+    CONFLICT("COMMON-CONFLICT", HttpStatus.CONFLICT, "요청이 현재 리소스 상태와 충돌합니다.", "error.common.conflict"),
+    ALREADY_EXISTS("COMMON-ALREADY-EXISTS", HttpStatus.CONFLICT, "이미 존재합니다.", "error.common.alreadyExists"),
+    RESOURCE_LOCKED("COMMON-LOCKED", HttpStatus.LOCKED, "리소스가 잠겨 있습니다.", "error.common.locked"),
+    TOO_MANY_REQUESTS("COMMON-TOO-MANY-REQUESTS", HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많습니다.", "error.common.tooManyRequests"),
+    SERVICE_UNAVAILABLE("COMMON-SERVICE-UNAVAILABLE", HttpStatus.SERVICE_UNAVAILABLE, "일시적으로 이용할 수 없습니다.", "error.common.serviceUnavailable"),
+
     /**
      * 보안/Auth
      */
