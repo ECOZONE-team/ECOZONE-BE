@@ -1,4 +1,5 @@
 package co.ecozone.ecozoneapi.inquiry.infrastructure.web.dto;
+import java.time.Instant;
 
 public record InquiryDetailResponse(
         Long id,
@@ -8,5 +9,5 @@ public record InquiryDetailResponse(
         String phone,
         String note,
         boolean answered,
-        java.time.Instant createdAt
+        Instant createdAt
 ) {}

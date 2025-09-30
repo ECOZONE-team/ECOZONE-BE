@@ -1,9 +1,10 @@
 package co.ecozone.ecozoneapi.inquiry.infrastructure.web.dto;
+import java.time.Instant;
 
 public record InquiryListResponse(
         Long id,
         String companyName,
         String name,
-        java.time.Instant createdAt,
+        Instant createdAt,
         boolean answered
 ) {}

@@ -4,13 +4,10 @@ import co.ecozone.ecozoneapi.auth.infrastructure.security.JwtPrincipal;
 import co.ecozone.ecozoneapi.auth.domain.model.security.Role;
 import co.ecozone.ecozoneapi.inquiry.application.command.CreateInquiryCommand;
 import co.ecozone.ecozoneapi.inquiry.application.command.UpdateInquiryCommand;
-import co.ecozone.ecozoneapi.inquiry.application.dto.InquiryDetail;
-import co.ecozone.ecozoneapi.inquiry.application.dto.InquirySummary;
 import co.ecozone.ecozoneapi.inquiry.application.service.InquiryService;
 import co.ecozone.ecozoneapi.inquiry.infrastructure.web.dto.*;
 import co.ecozone.ecozoneapi.inquiry.infrastructure.web.mapper.InquiryApiMapper;
 import lombok.AllArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -18,11 +15,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
 import jakarta.validation.Valid;
+
 import java.net.URI;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/inquiries")
@@ -39,14 +35,14 @@ public class InquiryController {
             @AuthenticationPrincipal JwtPrincipal principal) {
 
         CreateInquiryCommand cmd = mapper.toCommand(req, principal.userId().value());
-        InquiryDetail detail = service.createInquiry(cmd);
-        InquiryDetailResponse response = mapper.toResponse(detail);
+        InquiryDetailResponse response = service.createInquiry(cmd);
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
-                .buildAndExpand(detail.id())
+                .buildAndExpand(response.id())
                 .toUri();
+
         return ResponseEntity.created(location).body(response);
     }
 
@@ -57,17 +53,11 @@ public class InquiryController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        boolean isAdmin = principal.roles().stream()
-                .anyMatch(role -> role == Role.ADMIN);
-
+        boolean isAdmin = principal.roles().stream().anyMatch(role -> role == Role.ADMIN);
         Pageable pageable = PageRequest.of(page, size);
-        Page<InquirySummary> summaries = service.listInquiries(principal.userId().value(), isAdmin, pageable);
-
-        List<InquiryListResponse> responseList = summaries.stream()
-                .map(mapper::toResponse)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(responseList);
+        List<InquiryListResponse> summaries = service.listInquiries(principal.userId().value(), isAdmin, pageable)
+                .getContent();
+        return ResponseEntity.ok(summaries);
     }
 
     @GetMapping("/{id}")
@@ -76,11 +66,8 @@ public class InquiryController {
             @PathVariable Long id,
             @AuthenticationPrincipal JwtPrincipal principal) {
 
-        boolean isAdmin = principal.roles().stream()
-                .anyMatch(role -> role == Role.ADMIN);
-
-        InquiryDetail detail = service.getInquiry(id, principal.userId().value(), isAdmin);
-        InquiryDetailResponse response = mapper.toResponse(detail);
+        boolean isAdmin = principal.roles().stream().anyMatch(role -> role == Role.ADMIN);
+        InquiryDetailResponse response = service.getInquiry(id, principal.userId().value(), isAdmin);
         return ResponseEntity.ok(response);
     }
 
@@ -90,8 +77,7 @@ public class InquiryController {
             @PathVariable Long id,
             @AuthenticationPrincipal JwtPrincipal principal) {
 
-        InquiryDetail detail = service.markAsAnswered(id, principal.userId().value());
-        InquiryDetailResponse response = mapper.toResponse(detail);
+        InquiryDetailResponse response = service.markAsAnswered(id, principal.userId().value());
         return ResponseEntity.ok(response);
     }
 
@@ -103,16 +89,8 @@ public class InquiryController {
             @AuthenticationPrincipal JwtPrincipal principal) {
 
         UpdateInquiryCommand cmd = new UpdateInquiryCommand(
-                id,
-                null,
-                req.name(),
-                req.phone(),
-                req.note(),
-                principal.userId().value()
-        );
-
-        InquiryDetail detail = service.updateInquiry(cmd, principal.userId().value());
-        InquiryDetailResponse response = mapper.toResponse(detail);
+                id, null, req.name(), req.phone(), req.note(), principal.userId().value());
+        InquiryDetailResponse response = service.updateInquiry(cmd, principal.userId().value());
         return ResponseEntity.ok(response);
     }
 }

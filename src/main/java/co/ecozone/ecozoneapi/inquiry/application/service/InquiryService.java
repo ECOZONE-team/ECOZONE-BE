@@ -2,12 +2,13 @@ package co.ecozone.ecozoneapi.inquiry.application.service;
 
 import co.ecozone.ecozoneapi.inquiry.application.command.CreateInquiryCommand;
 import co.ecozone.ecozoneapi.inquiry.application.command.UpdateInquiryCommand;
-import co.ecozone.ecozoneapi.inquiry.application.dto.InquiryDetail;
-import co.ecozone.ecozoneapi.inquiry.application.dto.InquirySummary;
-import co.ecozone.ecozoneapi.inquiry.application.exception.InquiryAccessDeniedException;
-import co.ecozone.ecozoneapi.inquiry.application.exception.InquiryNotFoundException;
 import co.ecozone.ecozoneapi.inquiry.application.port.out.InquiryRepository;
 import co.ecozone.ecozoneapi.inquiry.domain.model.Inquiry;
+import co.ecozone.ecozoneapi.inquiry.infrastructure.web.dto.InquiryDetailResponse;
+import co.ecozone.ecozoneapi.inquiry.infrastructure.web.dto.InquiryListResponse;
+import co.ecozone.ecozoneapi.inquiry.infrastructure.web.mapper.InquiryApiMapper;
+import co.ecozone.ecozoneapi.platform.web.error.ApiException;
+import co.ecozone.ecozoneapi.platform.web.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -25,79 +26,68 @@ import java.util.stream.Collectors;
 public class InquiryService {
 
     private final InquiryRepository repository;
+    private final InquiryApiMapper mapper;
     private final Clock clock;
 
     @Transactional
-    public InquiryDetail createInquiry(CreateInquiryCommand cmd) {
-        Inquiry domain = Inquiry.create(
-                cmd.companyIdx(),
-                cmd.companyName(),
-                cmd.name(),
-                cmd.phone(),
-                cmd.note(),
-                cmd.createdBy(),
-                clock.instant()
-        );
-        Inquiry saved = repository.save(domain);
-        return toDetail(saved);
-    }
-
-    public Page<InquirySummary> listInquiries(Long requesterId, boolean isAdmin, Pageable pageable) {
-        List<Inquiry> list = isAdmin ?
-                repository.findAll(pageable) :
-                repository.findByCreatedBy(requesterId, pageable);
-        List<InquirySummary> summaries = list.stream()
-                .map(this::toSummary)
-                .collect(Collectors.toList());
-        return new PageImpl<>(summaries, pageable, summaries.size());
-    }
-
-    public InquiryDetail getInquiry(Long id, Long requesterId, boolean isAdmin) {
-        Inquiry inquiry = repository.findById(id)
-                .orElseThrow(() -> new InquiryNotFoundException("Inquiry not found: " + id));
-        if (!isAdmin && !inquiry.getCreatedBy().equals(requesterId)) {
-            throw new InquiryAccessDeniedException("Access denied: " + id);
+    public InquiryDetailResponse createInquiry(CreateInquiryCommand cmd) {
+        try {
+            Inquiry inquiry = Inquiry.create(
+                    cmd.companyIdx(),
+                    cmd.companyName(),
+                    cmd.name(),
+                    cmd.phone(),
+                    cmd.note(),
+                    cmd.createdBy(),
+                    clock.instant()
+            );
+            Inquiry saved = repository.save(inquiry);
+            return mapper.toDetailResponse(saved);
+        } catch (Exception e) {
+            throw new ApiException(ErrorCode.INTERNAL_ERROR, "문의 생성 중 오류가 발생했습니다.");
         }
-        return toDetail(inquiry);
+    }
+
+    public Page<InquiryListResponse> listInquiries(Long requesterId, boolean isAdmin, Pageable pageable) {
+        List<InquiryListResponse> list = (isAdmin ? repository.findAll(pageable)
+                : repository.findByCreatedBy(requesterId, pageable))
+                .stream()
+                .map(mapper::toSummaryResponse)
+                .collect(Collectors.toList());
+        return new PageImpl<>(list, pageable, list.size());
+    }
+
+    public InquiryDetailResponse getInquiry(Long id, Long requesterId, boolean isAdmin) {
+        Inquiry inquiry = repository.findById(id)
+                .orElseThrow(() -> new ApiException(ErrorCode.INQUIRY_NOT_FOUND));
+
+        if (!isAdmin && !inquiry.getCreatedBy().equals(requesterId)) {
+            throw new ApiException(ErrorCode.INQUIRY_NOT_FOUND, "접근 권한이 없습니다.");
+        }
+
+        return mapper.toDetailResponse(inquiry);
     }
 
     @Transactional
-    public InquiryDetail markAsAnswered(Long id, Long requesterId) {
+    public InquiryDetailResponse markAsAnswered(Long id, Long requesterId) {
         Inquiry inquiry = repository.findById(id)
-                .orElseThrow(() -> new InquiryNotFoundException("Inquiry not found: " + id));
+                .orElseThrow(() -> new ApiException(ErrorCode.INQUIRY_NOT_FOUND));
         Inquiry updated = inquiry.markAsAnswered();
         Inquiry saved = repository.save(updated);
-        return toDetail(saved);
+        return mapper.toDetailResponse(saved);
     }
 
     @Transactional
-    public InquiryDetail updateInquiry(UpdateInquiryCommand cmd, Long requesterId) {
+    public InquiryDetailResponse updateInquiry(UpdateInquiryCommand cmd, Long requesterId) {
         Inquiry inquiry = repository.findById(cmd.id())
-                .orElseThrow(() -> new InquiryNotFoundException("Inquiry not found: " + cmd.id()));
+                .orElseThrow(() -> new ApiException(ErrorCode.INQUIRY_NOT_FOUND));
 
         if (!inquiry.getCreatedBy().equals(requesterId)) {
-            throw new InquiryAccessDeniedException("Only the creator can update this inquiry: " + cmd.id());
+            throw new ApiException(ErrorCode.INQUIRY_NOT_FOUND, "문의 작성자만 수정 가능합니다.");
         }
 
         Inquiry updated = inquiry.update(cmd.name(), cmd.phone(), cmd.note());
         Inquiry saved = repository.save(updated);
-        return toDetail(saved);
-    }
-
-    private InquirySummary toSummary(Inquiry i) {
-        return new InquirySummary(i.getId(), i.getCompanyName(), i.getName(), i.getCreatedAt(), i.isAnswered());
-    }
-
-    private InquiryDetail toDetail(Inquiry i) {
-        return new InquiryDetail(
-                i.getId(),
-                i.getCompanyIdx(),
-                i.getCompanyName(),
-                i.getName(),
-                i.getPhone(),
-                i.getNote(),
-                i.isAnswered(),
-                i.getCreatedAt()
-        );
+        return mapper.toDetailResponse(saved);
     }
 }

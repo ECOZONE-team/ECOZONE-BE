@@ -40,7 +40,6 @@ public interface InquiryJpaMapper {
             );
         }
 
-        // 기존 데이터 재조회, 수정
         return InquiryJpaEntity.rehydrate(
                 i.getId(),
                 i.getCompanyIdx(),

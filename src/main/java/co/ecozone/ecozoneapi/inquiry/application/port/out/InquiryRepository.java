@@ -7,9 +7,12 @@ import java.util.List;
 import java.util.Optional;
 
 public interface InquiryRepository {
+
     Inquiry save(Inquiry inquiry);
+
     Optional<Inquiry> findById(Long id);
 
-    List<Inquiry> findByCreatedBy(Long createdBy, Pageable pageable);
     List<Inquiry> findAll(Pageable pageable);
+
+    List<Inquiry> findByCreatedBy(Long createdBy, Pageable pageable);
 }

@@ -1,9 +1,7 @@
 package co.ecozone.ecozoneapi.inquiry.domain.model;
 
 import lombok.Getter;
-
 import java.time.Instant;
-import java.util.Objects;
 
 @Getter
 public final class Inquiry {
