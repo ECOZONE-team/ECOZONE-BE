@@ -33,6 +33,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 
+import java.util.List;
+
 
 /**
  * Spring Security 어댑터 구성 클래스
@@ -147,11 +149,9 @@ public class SecurityConfig {
             if (r.allowCredentials() && r.allowedOrigins().stream().anyMatch("*"::equals)) {
                 // 강제 변환: "*"는 패턴으로 옮기고 origins는 비움
                 cfg.setAllowedOrigins(null);
-                if (r.allowedOriginPatterns().isEmpty()) {
-                    cfg.setAllowedOriginPatterns(java.util.List.of("*"));
-                } else {
-                    cfg.setAllowedOriginPatterns(r.allowedOriginPatterns());
-                }
+                cfg.setAllowedOriginPatterns(
+                        r.allowedOriginPatterns().isEmpty() ? List.of("*") : r.allowedOriginPatterns()
+                );
             } else {
                 if (!r.allowedOrigins().isEmpty()) cfg.setAllowedOrigins(r.allowedOrigins());
                 if (!r.allowedOriginPatterns().isEmpty()) cfg.setAllowedOriginPatterns(r.allowedOriginPatterns());

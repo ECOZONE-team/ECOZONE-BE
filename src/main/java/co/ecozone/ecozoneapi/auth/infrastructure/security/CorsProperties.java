@@ -18,7 +18,7 @@ import java.util.List;
  */
 @Getter
 @Setter
-@ConfigurationProperties(prefix = "app.security.cors")
+@ConfigurationProperties(prefix = "app.security.routes.cors")
 public class CorsProperties {
 
     @Valid

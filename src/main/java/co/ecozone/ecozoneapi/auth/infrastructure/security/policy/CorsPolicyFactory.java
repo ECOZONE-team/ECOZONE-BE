@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * 외부 설정(app.security.cors.*)을 도메인 CORS 정책(CorsPolicy/CorsRule)으로 변환하는 팩토리
+ * 외부 설정(app.security.routes.cors.*)을 도메인 CORS 정책(CorsPolicy/CorsRule)으로 변환하는 팩토리
  * 계층: Auth(Security) 컨텍스트 / Application 레이어
  * 목적: 하드코딩 제거, 환경별 정책 교체 용이, SecurityConfig는 적용만 담당.
  * Thread-safety: 무상태(Stateless)
