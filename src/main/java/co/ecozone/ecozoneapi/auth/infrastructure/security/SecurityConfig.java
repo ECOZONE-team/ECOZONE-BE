@@ -84,6 +84,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(reg -> {
+                    reg.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
                     // 1. 도메인 정책을 순회하며 적용
                     for (AccessRule rule : policy.rules()) {
                         var patterns = rule.patterns().stream().map(EndPointPattern::value).toArray(String[]::new);
