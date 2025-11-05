@@ -33,6 +33,8 @@ public class TossPaymentProvider implements PaymentProvider {
 
     @Override
     public ConfirmResult confirm(String paymentKey, String orderId, long amount) {
+        int tries = 0;
+
         try {
             var res = tossRestClient.post()
                     .uri("/v1/payments/confirm")
@@ -44,6 +46,9 @@ public class TossPaymentProvider implements PaymentProvider {
         } catch (RestClientResponseException e) {
             return new ConfirmResult(false, null, e.getResponseBodyAsString());
         } catch (Exception e) {
+            if (++tries >= 3) return new ConfirmResult(false, null, "network:" + e.getMessage());
+            try { Thread.sleep((long)Math.pow(2, tries) * 200L); } catch (InterruptedException ignored) {}
+
             return new ConfirmResult(false, null, e.getMessage());
         }
     }
@@ -61,7 +66,7 @@ public class TossPaymentProvider implements PaymentProvider {
         } catch (RestClientResponseException e) {
             return new CancelResult(false, null, e.getResponseBodyAsString());
         } catch (Exception e) {
-            return new CancelResult(false, null, e.getMessage());
+            return new CancelResult(false, null, "network:" + e.getMessage());
         }
     }
 

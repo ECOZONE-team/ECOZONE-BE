@@ -1,5 +1,7 @@
 package co.ecozone.ecozoneapi.payment.application.port.in;
 
+import co.ecozone.ecozoneapi.auth.domain.model.UserId;
+
 /**
  * 결제 승인 유스케이스 포트 (입력 포트)
  * - Idempotency-Key를 통한 동일 요청 재진입 제어 전제
@@ -7,5 +9,5 @@ package co.ecozone.ecozoneapi.payment.application.port.in;
  * @since 2025-09-16
  */
 public interface ConfirmPaymentUseCase {
-    Long confirm(String idemKey, String paymentKey, String orderId, long amount);
+    Long confirm(String idemKey, UserId userId, String paymentKey, String orderId, long amount);
 }

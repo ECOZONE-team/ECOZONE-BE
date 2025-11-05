@@ -55,6 +55,11 @@ public class User {
         return new User(id, email, name, passwordHash, roles, enabled, createdAt);
     }
 
+    public User withPasswordHash(String newHash) {
+        if (newHash == null || newHash.isBlank()) throw new IllegalArgumentException("passwordHash required");
+        return new User(id, email, name, newHash, roles, enabled, createdAt);
+    }
+
     public User withId(UserId id) {
         return new User(id, email, name, passwordHash, roles, enabled, createdAt);
     }

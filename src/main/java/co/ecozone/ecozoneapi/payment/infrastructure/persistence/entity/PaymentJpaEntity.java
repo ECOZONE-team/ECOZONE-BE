@@ -1,5 +1,6 @@
-package co.ecozone.ecozoneapi.payment.infrastructure.persistence;
+package co.ecozone.ecozoneapi.payment.infrastructure.persistence.entity;
 
+import co.ecozone.ecozoneapi.auth.domain.model.UserId;
 import co.ecozone.ecozoneapi.payment.domain.model.Payment;
 import co.ecozone.ecozoneapi.payment.domain.model.PaymentStatus;
 import jakarta.persistence.*;
@@ -32,6 +33,9 @@ public class PaymentJpaEntity {
     @Column(nullable=false)
     private long amount;
 
+    @Column(nullable=false)
+    private Long userId;
+
     @Column(length = 200)         // NULL 허용, PG 승인 후 채워짐
     private String paymentKey;
 
@@ -46,14 +50,21 @@ public class PaymentJpaEntity {
     @Column(length = 1000)
     private String failureReason;
 
+    @Column(nullable = false)
+    private Instant createdAt;
+
+    @Column(nullable = false)
+    private Instant updatedAt;
+
+    /** 낙관적 락 */
     @Version
     private Long version;
 
-    public static PaymentJpaEntity from(Payment p) {
+    public static PaymentJpaEntity newOf(Payment p) {
         var e = new PaymentJpaEntity();
-        e.id = p.getId();
         e.orderId = p.getOrderId();
         e.amount = p.getAmount();
+        e.userId = p.getUserId().value();
         e.paymentKey = p.getPaymentKey();
         e.status = p.getStatus();
         e.approvedAt = p.getApprovedAt();
@@ -62,7 +73,44 @@ public class PaymentJpaEntity {
         return e;
     }
 
-    public Payment toDomain() {
-        return new Payment(id, orderId, amount, paymentKey, status, approvedAt, canceledAt, failureReason);
+    public void applyFrom(Payment p, Instant now) {
+        this.amount = p.getAmount();
+        this.userId = p.getUserId().value();
+        this.paymentKey = p.getPaymentKey();
+        this.status = p.getStatus();
+        this.approvedAt = p.getApprovedAt();
+        this.canceledAt = p.getCanceledAt();
+        this.failureReason = p.getFailureReason();
+        this.updatedAt = now;
     }
+
+    public Payment toDomain() {
+        return new Payment(
+                id,
+                orderId,
+                amount,
+                new UserId(userId),
+                paymentKey,
+                status,
+                approvedAt,
+                canceledAt,
+                failureReason,
+                createdAt,
+                updatedAt
+        );
+    }
+
+    @PrePersist
+    void prePersist() {
+        var now = Instant.now();
+        if (createdAt == null) createdAt = now;
+        if (updatedAt == null) updatedAt = now;
+        if (status == null) status = PaymentStatus.INITIATED;
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        updatedAt = Instant.now();
+    }
+
 }
