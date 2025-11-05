@@ -1,5 +1,6 @@
 package co.ecozone.ecozoneapi.payment.infrastructure.persistence;
 
+import co.ecozone.ecozoneapi.payment.infrastructure.persistence.entity.PaymentJpaEntity;
 import io.lettuce.core.dynamic.annotation.Param;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
