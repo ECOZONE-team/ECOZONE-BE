@@ -44,8 +44,14 @@ public enum ErrorCode {
     /**
      * Inquiry
      */
-    INQUIRY_NOT_FOUND("INQUIRY-NOT-FOUND", HttpStatus.NOT_FOUND, "문의가 존재하지 않습니다.", "error.inquiry.notFound");
+    INQUIRY_NOT_FOUND("INQUIRY-NOT-FOUND", HttpStatus.NOT_FOUND, "문의가 존재하지 않습니다.", "error.inquiry.notFound"),
 
+    /**
+     * Payment
+     */
+    PAYMENT_CONFIRM_FAILED("PAYMENT-CONFIRM-FAILED", HttpStatus.CONFLICT, "결제 승인에 실패했습니다.", "error.payment.confirmFailed"),
+    PAYMENT_SESSION_NOT_FOUND("PAYMENT-SESSION-NOT-FOUND", HttpStatus.GONE, "결제 시간이 만료되었습니다.", "error.payment.sessionNotFound"),
+    ;
     public final String code;
 
     public final HttpStatus status;

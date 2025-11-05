@@ -1,7 +1,9 @@
 package co.ecozone.ecozoneapi.payment.application.port.out;
 
+import co.ecozone.ecozoneapi.payment.domain.model.LedgerEntry;
 import co.ecozone.ecozoneapi.payment.domain.model.Payment;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -14,4 +16,6 @@ public interface PaymentRepository {
     Payment save(Payment p);
     Optional<Payment> lockByOrderId(String orderId);
     Optional<Payment> findById(Long id);
+    void append(LedgerEntry entry);
+    List<LedgerEntry> findLedgerByOrderId(String orderId);
 }
