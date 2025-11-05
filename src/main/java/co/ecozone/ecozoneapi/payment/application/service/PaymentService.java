@@ -29,8 +29,6 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 
-import static co.ecozone.ecozoneapi.payment.infrastructure.persistence.entity.PaymentCommandLogJpaEntity.Status.*;
-
 /**
  * 결제 애플리케이션 서비스
  * - 2-Phase 흐름: (1) 예약/락 → (2) PG 호출 → (3) 결과 반영
@@ -44,68 +42,17 @@ import static co.ecozone.ecozoneapi.payment.infrastructure.persistence.entity.Pa
 @RequiredArgsConstructor
 public class PaymentService implements CreateOrderUseCase, ConfirmPaymentUseCase, CancelPaymentUseCase {
 
-    private final PaymentRepository paymentRepo;      // lockByOrderId 사용
+    private final PaymentRepository paymentRepo;
     private final PaymentCommandLogRepository cmdLogRepo;
     private final PaymentProvider provider;
     private final PlatformTransactionManager txm;
     private final TransactionTemplate tx;
     private final Clock clock;
 
-    private TransactionTemplate txRequired() {
-        return new TransactionTemplate(txm); // PROPAGATION_REQUIRED
-    }
     private TransactionTemplate txNew() {
         TransactionTemplate t = new TransactionTemplate(txm);
         t.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         return t;
-    }
-
-
-    /** 1) 예약(AUTHORIZED까지) — 짧은 TX, (userId+orderId) 단일 소유 보장 */
-    private Long reserveAuthorize(UserId userId, String orderId, long amount, String paymentKey) {
-        return tx.execute(status -> {
-            Payment current = paymentRepo.lockByOrderId(orderId).orElse(null);
-            var now = Instant.now(clock);
-
-            Payment p = (current == null)
-                    ? Payment.initiated(userId, orderId, amount, now)
-                    : current;
-
-            // 이미 처리된 경우 멱등 처리
-            switch (p.getStatus()) {
-                case CONFIRMED -> { return p.getId(); }
-                case CANCELED  -> throw new IllegalStateException("already canceled");
-                default -> { /* 진행 */ }
-            }
-            // 예약(AUTHORIZED)로 전이
-            Payment saved = paymentRepo.save(p.authorized(paymentKey, now));
-            return saved.getId();
-        });
-    }
-
-
-    /** 2) 외부(PG) 호출 — 트랜잭션 없음 */
-    private ConfirmResult callProviderConfirm(String paymentKey, String orderId, long amount) {
-        return provider.confirm(paymentKey, orderId, amount);
-    }
-
-    /** 3) 결과 반영 — 짧은 TX, 멱등/재시도 안전 */
-    private void applyConfirmResult(Long paymentId, ConfirmResult res, Long cmdLogId) {
-        var now = Instant.now(clock);
-        tx.executeWithoutResult(s -> {
-            Payment p = paymentRepo.findById(paymentId).orElseThrow();
-
-            // 이미 확정/실패로 끝난 건이면 멱등 반환
-            if (p.getStatus().isTerminal()) return;
-
-            if (res.ok()) paymentRepo.save(p.confirmed(res.approvedAt(), now));
-            else          paymentRepo.save(p.failed(res.failureReason(), now));
-
-            // 커맨드 로그 마감(성공/실패)
-            PaymentCommandLogJpaEntity log = cmdLogRepo.findById(cmdLogId).orElseThrow();
-            if (res.ok()) log.markSucceeded(paymentId, Instant.now(clock));
-            else          log.markFailed(res.failureReason(), Instant.now(clock));
-        });
     }
 
     @Override
