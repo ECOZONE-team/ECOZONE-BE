@@ -11,7 +11,8 @@ import co.ecozone.ecozoneapi.payment.infrastructure.persistence.response.CancelR
 import co.ecozone.ecozoneapi.payment.infrastructure.persistence.response.ConfirmResponse;
 import co.ecozone.ecozoneapi.payment.infrastructure.persistence.response.CreateOrderResponse;
 import jakarta.validation.Valid;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -25,11 +26,14 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/payments")
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class PaymentController {
 
+    @Qualifier("createOrderService")
     private final CreateOrderUseCase createUC;
+    @Qualifier("confirmPaymentService")
     private final ConfirmPaymentUseCase confirmUC;
+    @Qualifier("cancelPaymentService")
     private final CancelPaymentUseCase cancelUC;
 
     @PostMapping("/orders")
