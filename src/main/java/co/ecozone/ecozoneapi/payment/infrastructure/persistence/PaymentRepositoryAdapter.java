@@ -95,4 +95,12 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
                 .stream().map(LedgerEntryJpaEntity::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<Payment> findByDateRange(Instant from, Instant to) {
+        return paymentRepo.findByCreatedAtBetween(from, to)
+                .stream()
+                .map(PaymentJpaEntity::toDomain)
+                .toList();
+    }
 }

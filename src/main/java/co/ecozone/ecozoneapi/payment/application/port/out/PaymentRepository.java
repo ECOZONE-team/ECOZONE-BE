@@ -3,6 +3,7 @@ package co.ecozone.ecozoneapi.payment.application.port.out;
 import co.ecozone.ecozoneapi.payment.domain.model.LedgerEntry;
 import co.ecozone.ecozoneapi.payment.domain.model.Payment;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,4 +19,9 @@ public interface PaymentRepository {
     Optional<Payment> findById(Long id);
     void append(LedgerEntry entry);
     List<LedgerEntry> findLedgerByOrderId(String orderId);
+
+    /**
+     * 기간별 결제 조회 (Reconciliation용)
+     */
+    List<Payment> findByDateRange(Instant from, Instant to);
 }
