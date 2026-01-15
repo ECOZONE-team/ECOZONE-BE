@@ -13,4 +13,6 @@ import java.util.Optional;
  */
 public interface PaymentCommandLogRepository extends JpaRepository<PaymentCommandLogJpaEntity, Long> {
     Optional<PaymentCommandLogJpaEntity> findByIdemKey(String idemKey);
+    Optional<PaymentCommandLogJpaEntity> findByOrderId(String orderId);
+
 }
