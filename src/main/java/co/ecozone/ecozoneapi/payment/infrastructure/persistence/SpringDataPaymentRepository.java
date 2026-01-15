@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -21,4 +23,9 @@ public interface SpringDataPaymentRepository extends JpaRepository<PaymentJpaEnt
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from PaymentJpaEntity p where p.orderId = :orderId")
     Optional<PaymentJpaEntity> lockByOrderId(@Param("orderId") String orderId);
+
+    /**
+     * 기간별 결제 조회 (Reconciliation용)
+     */
+    List<PaymentJpaEntity> findByCreatedAtBetween(Instant from, Instant to);
 }
