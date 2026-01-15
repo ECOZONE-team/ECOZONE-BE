@@ -125,7 +125,15 @@ public class PaymentCommandLogJpaEntity {
         };
     }
 
+    // ============================================================
     // 레거시 메서드 (하위 호환성 유지)
+    // 새 코드에서는 PaymentCommand 도메인 모델 + PaymentCommandRepository 사용
+    // ============================================================
+
+    /**
+     * @deprecated 도메인 로직이 JPA 엔티티에 있어 SRP 위반.
+     *             대신 {@link PaymentCommand#start(String, String, String, Instant)} 사용
+     */
     @Deprecated(since = "2025-01-15", forRemoval = true)
     public static PaymentCommandLogJpaEntity start(String idemKey, String orderId, String requestHash, Instant now) {
         var e = new PaymentCommandLogJpaEntity();
@@ -141,6 +149,10 @@ public class PaymentCommandLogJpaEntity {
         return e;
     }
 
+    /**
+     * @deprecated 비즈니스 로직이 JPA 엔티티에 있어 SRP 위반.
+     *             대신 {@link PaymentCommand#markSucceeded(Long, Instant)} 사용
+     */
     @Deprecated(since = "2025-01-15", forRemoval = true)
     public void markSucceeded(Long paymentId, Instant now) {
         if (this.status == Status.SUCCEEDED) return; // 멱등
@@ -149,6 +161,10 @@ public class PaymentCommandLogJpaEntity {
         this.updatedAt = Objects.requireNonNull(now, "now");
     }
 
+    /**
+     * @deprecated 비즈니스 로직이 JPA 엔티티에 있어 SRP 위반.
+     *             대신 {@link PaymentCommand#markFailed(String, Instant)} 사용
+     */
     @Deprecated(since = "2025-01-15", forRemoval = true)
     public void markFailed(String reason, Instant now) {
         if (this.status == Status.SUCCEEDED) return; // 이미 성공한 커맨드는 실패로 되돌리지 않음

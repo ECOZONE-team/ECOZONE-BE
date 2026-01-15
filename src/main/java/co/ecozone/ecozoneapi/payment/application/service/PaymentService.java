@@ -30,13 +30,19 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * 결제 애플리케이션 서비스
+ * 결제 애플리케이션 서비스 (DEPRECATED)
  * - 2-Phase 흐름: (1) 예약/락 → (2) PG 호출 → (3) 결과 반영
  * - Idempotency-Key를 활용한 중복 승인 방지 및 재시도 안정성 제공
  * - 짧은 트랜잭션(조회→변경 적용) 원칙 준수, @Version 기반 낙관적 잠금 보조
  * - 포트(UseCase/Provider/Repository)만 의존하며, 프레임워크 의존 최소화
+ *
+ * @deprecated SRP 위반으로 분리됨. 대신 다음을 사용:
+ *   - {@link CreateOrderService}
+ *   - {@link ConfirmPaymentService}
+ *   - {@link CancelPaymentService}
  * @since 2025-09-16
  */
+@Deprecated(since = "2025-01-15", forRemoval = true)
 @Service
 @Transactional
 @RequiredArgsConstructor
