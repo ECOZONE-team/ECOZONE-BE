@@ -30,16 +30,23 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * 결제 애플리케이션 서비스
+ * 결제 애플리케이션 서비스 (DEPRECATED)
  * - 2-Phase 흐름: (1) 예약/락 → (2) PG 호출 → (3) 결과 반영
  * - Idempotency-Key를 활용한 중복 승인 방지 및 재시도 안정성 제공
  * - 짧은 트랜잭션(조회→변경 적용) 원칙 준수, @Version 기반 낙관적 잠금 보조
  * - 포트(UseCase/Provider/Repository)만 의존하며, 프레임워크 의존 최소화
+ *
+ * @deprecated SRP 위반으로 분리됨. 대신 다음을 사용:
+ *   - {@link CreateOrderService}
+ *   - {@link ConfirmPaymentService}
+ *   - {@link CancelPaymentService}
  * @since 2025-09-16
  */
+@Deprecated(since = "2025-01-15", forRemoval = true)
 @Service
 @Transactional
 @RequiredArgsConstructor
+@SuppressWarnings("deprecation") // PaymentCommandLogJpaEntity.Status 레거시 호환성 유지
 public class PaymentService implements CreateOrderUseCase, ConfirmPaymentUseCase, CancelPaymentUseCase {
 
     private final PaymentRepository paymentRepo;
@@ -64,26 +71,119 @@ public class PaymentService implements CreateOrderUseCase, ConfirmPaymentUseCase
 
     @Override
     public Long cancel(Long paymentId, String reason) {
-        // 취소 역시 2-Phase: 상태 확인/락 → PG 취소 → 반영
-        var now = Instant.now(clock);
-        Payment payment = tx.execute(st -> paymentRepo.findById(paymentId)
-                .orElseThrow(() -> new IllegalArgumentException("payment not found")));
+        return cancel(null, paymentId, reason);
+    }
 
-        if (payment.getStatus() != PaymentStatus.CONFIRMED)
-            throw new IllegalStateException("only confirmed payment can be canceled");
+    /**
+     * 결제 취소 (멱등성 보장)
+     * @param idemKey 멱등키 (선택 사항, 없으면 paymentId 기반 자동 생성)
+     * @param paymentId 결제 ID
+     * @param reason 취소 사유
+     */
+    public Long cancel(String idemKey, Long paymentId, String reason) {
+        final Instant now = Instant.now(clock);
 
-        CancelResult res = provider.cancel(payment.getPaymentKey(), reason);
+        // 멱등키 생성 (없으면 "cancel:{paymentId}" 사용)
+        final String effectiveIdemKey = (idemKey != null && !idemKey.isBlank())
+            ? idemKey
+            : "cancel:" + paymentId;
 
-        tx.executeWithoutResult(st -> {
+        // A-1) 멱등키 선점 — REQUIRES_NEW
+        PaymentCommandLogJpaEntity cmd = txNew().execute(status -> {
+            return cmdLogRepo.findByIdemKey(effectiveIdemKey).map(existing -> {
+                return switch (existing.getStatus()) {
+                    case SUCCEEDED -> existing;
+                    case IN_PROGRESS -> throw new ApiException(ErrorCode.CONFLICT, "cancel in progress");
+                    case FAILED -> throw new ApiException(ErrorCode.CONFLICT, "cancel previously failed");
+                };
+            }).orElseGet(() -> {
+                // 결제 정보 조회하여 orderId 획득
+                Payment p = paymentRepo.findById(paymentId)
+                    .orElseThrow(() -> new ApiException(ErrorCode.BAD_REQUEST, "payment not found"));
+                return cmdLogRepo.saveAndFlush(
+                    PaymentCommandLogJpaEntity.start(effectiveIdemKey, p.getOrderId(),
+                        hash(p.getPaymentKey(), p.getOrderId(), p.getAmount()), now)
+                );
+            });
+        });
+
+        if (cmd.getStatus() == PaymentCommandLogJpaEntity.Status.SUCCEEDED) {
+            return Objects.requireNonNull(cmd.getPaymentId(), "paymentId");
+        }
+
+        // A-2) 결제 상태 확인 및 락 — REQUIRES_NEW
+        String paymentKey = txNew().execute(st -> {
+            Payment payment = paymentRepo.findById(paymentId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BAD_REQUEST, "payment not found"));
+
+            // 상태 검증
+            if (payment.getStatus() == PaymentStatus.CANCELED) {
+                // 이미 취소됨 - 멱등 처리
+                PaymentCommandLogJpaEntity log = cmdLogRepo.findById(cmd.getId()).orElseThrow();
+                if (log.getStatus() == PaymentCommandLogJpaEntity.Status.IN_PROGRESS) {
+                    log.markSucceeded(paymentId, now);
+                    cmdLogRepo.save(log);
+                }
+                return null; // 이미 취소됨 표시
+            }
+
+            if (payment.getStatus() != PaymentStatus.CONFIRMED) {
+                throw new ApiException(ErrorCode.BAD_REQUEST, "only confirmed payment can be canceled");
+            }
+
+            return payment.getPaymentKey();
+        });
+
+        // 이미 취소된 경우 즉시 반환
+        if (paymentKey == null) {
+            return paymentId;
+        }
+
+        // B) PG 취소 호출 — 트랜잭션 없음
+        CancelResult res;
+        try {
+            res = provider.cancel(paymentKey, reason);
+        } catch (Exception e) {
+            res = new CancelResult(false, null, "provider_error:" + e.getClass().getSimpleName());
+        }
+
+        // C) 결과 반영 (+원장) — REQUIRES_NEW
+        final String[] failureHolder = new String[1];
+        CancelResult finalRes = res;
+        txNew().executeWithoutResult(st -> {
             Payment managed = paymentRepo.findById(paymentId).orElseThrow();
-            if (res.ok()) {
-                paymentRepo.save(managed.canceled(reason, Instant.now(clock)));
-                paymentRepo.append(LedgerEntry.of(managed.getOrderId(), "MERCHANT:eco", "USER:" + managed.getUserId(),
-                        managed.getAmount(), Instant.now(clock), "cancel:" + reason));
+            PaymentCommandLogJpaEntity log = cmdLogRepo.findById(cmd.getId()).orElseThrow();
+
+            // 이미 취소된 경우
+            if (managed.getStatus() == PaymentStatus.CANCELED) {
+                if (log.getStatus() == PaymentCommandLogJpaEntity.Status.IN_PROGRESS) {
+                    log.markSucceeded(paymentId, now);
+                }
+                return;
+            }
+
+            if (finalRes.ok()) {
+                paymentRepo.save(managed.canceled(reason, now));
+                paymentRepo.append(LedgerEntry.of(
+                    managed.getOrderId(),
+                    "MERCHANT:eco",
+                    "USER:" + managed.getUserId(),
+                    managed.getAmount(),
+                    now,
+                    "cancel:" + reason
+                ));
+                log.markSucceeded(paymentId, now);
             } else {
-                paymentRepo.save(managed.failed(res.failureReason(), Instant.now(clock)));
+                log.markFailed(normalizeFailure(finalRes.failureReason()), now);
+                failureHolder[0] = normalizeFailure(finalRes.failureReason());
             }
         });
+
+        // 트랜잭션 밖에서 예외 던지기
+        if (failureHolder[0] != null) {
+            throw new ApiException(ErrorCode.PAYMENT_CANCEL_FAILED, failureHolder[0]);
+        }
+
         return paymentId;
     }
 

@@ -50,6 +50,7 @@ public enum ErrorCode {
      * Payment
      */
     PAYMENT_CONFIRM_FAILED("PAYMENT-CONFIRM-FAILED", HttpStatus.CONFLICT, "결제 승인에 실패했습니다.", "error.payment.confirmFailed"),
+    PAYMENT_CANCEL_FAILED("PAYMENT-CANCEL-FAILED", HttpStatus.CONFLICT, "결제 취소에 실패했습니다.", "error.payment.cancelFailed"),
     PAYMENT_SESSION_NOT_FOUND("PAYMENT-SESSION-NOT-FOUND", HttpStatus.GONE, "결제 시간이 만료되었습니다.", "error.payment.sessionNotFound"),
     ;
     public final String code;
