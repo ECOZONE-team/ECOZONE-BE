@@ -134,13 +134,14 @@ public class PaymentCommandExecutor {
             if (result.ok()) {
                 // 성공: 상태 변경 + 원장 기록
                 paymentRepository.save(payment.confirmed(result.approvedAt(), Instant.now(clock)));
+                PaymentProperties.Ledger ledgerConfig = paymentProperties.getLedger();
                 paymentRepository.append(LedgerEntry.of(
-                    payment.getOrderId(),
-                    "USER:" + payment.getUserId(),
-                    "MERCHANT:eco",
-                    payment.getAmount(),
-                    Instant.now(clock),
-                    "confirm"
+                        payment.getOrderId(),
+                        ledgerConfig.getUserAccountPrefix() + payment.getUserId(),
+                        ledgerConfig.getMerchantAccountPrefix() + ledgerConfig.getMerchantId(),
+                        payment.getAmount(),
+                        Instant.now(clock),
+                        ledgerConfig.getConfirmMemo()
                 ));
                 commandRepository.save(command.markSucceeded(paymentId, Instant.now(clock)));
             } else {
@@ -174,11 +175,11 @@ public class PaymentCommandExecutor {
                 PaymentProperties.Ledger ledgerConfig = paymentProperties.getLedger();
                 paymentRepository.append(LedgerEntry.of(
                         payment.getOrderId(),
-                        ledgerConfig.getUserAccountPrefix() + payment.getUserId(),
                         ledgerConfig.getMerchantAccountPrefix() + ledgerConfig.getMerchantId(),
+                        ledgerConfig.getUserAccountPrefix() + payment.getUserId(),
                         payment.getAmount(),
                         Instant.now(clock),
-                        ledgerConfig.getConfirmMemo()
+                        ledgerConfig.getCancelMemoPrefix() + reason
                 ));
                 commandRepository.save(command.markSucceeded(paymentId, Instant.now(clock)));
             } else {
