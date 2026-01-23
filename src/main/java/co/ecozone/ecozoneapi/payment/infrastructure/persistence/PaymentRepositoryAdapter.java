@@ -14,8 +14,11 @@ import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 결제 리포지토리 어댑터(JPA)
@@ -73,10 +76,15 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
         String memo = entry.memo();
         String orderId = entry.orderId();
 
-        long fromPrev = walletRepo.findTopByAccountIdOrderByIdDesc(from)
-                .map(WalletEntryJpaEntity::getBalanceAfter).orElse(0L);
-        long toPrev = walletRepo.findTopByAccountIdOrderByIdDesc(to)
-                .map(WalletEntryJpaEntity::getBalanceAfter).orElse(0L);
+        List<WalletEntryJpaEntity> latestWallets = walletRepo.findLatestByAccountIds(Arrays.asList(from, to));
+        Map<String, Long> balanceMap = latestWallets.stream()
+                .collect(Collectors.toMap(
+                        WalletEntryJpaEntity::getAccountId,
+                        WalletEntryJpaEntity::getBalanceAfter
+                ));
+
+        long fromPrev = balanceMap.getOrDefault(from, 0L);
+        long toPrev = balanceMap.getOrDefault(to, 0L);
 
         WalletEntry fromEntry = WalletEntry.of(
                 from, -amt, fromPrev - amt, at, orderId, memo
