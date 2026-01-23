@@ -8,6 +8,7 @@ import co.ecozone.ecozoneapi.payment.domain.model.LedgerEntry;
 import co.ecozone.ecozoneapi.payment.domain.model.Payment;
 import co.ecozone.ecozoneapi.payment.domain.model.PaymentCommand;
 import co.ecozone.ecozoneapi.payment.domain.model.PaymentStatus;
+import co.ecozone.ecozoneapi.payment.infrastructure.PaymentProperties;
 import co.ecozone.ecozoneapi.platform.web.error.ApiException;
 import co.ecozone.ecozoneapi.platform.web.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -36,11 +37,13 @@ public class PaymentCommandExecutor {
     private final PaymentCommandRepository commandRepository;
     private final PaymentRepository paymentRepository;
     private final PlatformTransactionManager txm;
+    private final PaymentProperties paymentProperties;
     private final Clock clock;
 
     private TransactionTemplate txNew() {
         TransactionTemplate t = new TransactionTemplate(txm);
         t.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        t.setTimeout(30);
         return t;
     }
 
@@ -167,13 +170,15 @@ public class PaymentCommandExecutor {
 
             if (success) {
                 paymentRepository.save(payment.canceled(reason, Instant.now(clock)));
+
+                PaymentProperties.Ledger ledgerConfig = paymentProperties.getLedger();
                 paymentRepository.append(LedgerEntry.of(
-                    payment.getOrderId(),
-                    "MERCHANT:eco",
-                    "USER:" + payment.getUserId(),
-                    payment.getAmount(),
-                    Instant.now(clock),
-                    "cancel:" + reason
+                        payment.getOrderId(),
+                        ledgerConfig.getUserAccountPrefix() + payment.getUserId(),
+                        ledgerConfig.getMerchantAccountPrefix() + ledgerConfig.getMerchantId(),
+                        payment.getAmount(),
+                        Instant.now(clock),
+                        ledgerConfig.getConfirmMemo()
                 ));
                 commandRepository.save(command.markSucceeded(paymentId, Instant.now(clock)));
             } else {

@@ -67,7 +67,7 @@ public class WebhookService {
 
         // 1) 이벤트 선점 (멱등성 체크) - REQUIRES_NEW
         PaymentEvent event = txNew().execute(status -> {
-            // 🔥 동시성 제어: eventId UNIQUE 제약으로 중복 방지
+            // 동시성 제어: eventId UNIQUE 제약으로 중복 방지
             try {
                 return eventRepository.findByEventId(eventId)
                         .orElseGet(() -> {

@@ -93,8 +93,11 @@ public class PaymentRepositoryAdapter implements PaymentRepository {
                 to, +amt, toPrev + amt, at, orderId, memo
         );
 
-        walletRepo.save(WalletEntryJpaEntity.from(fromEntry));
-        walletRepo.save(WalletEntryJpaEntity.from(toEntry));
+        // 배치 저장으로 성능 개선
+        walletRepo.saveAll(Arrays.asList(
+                WalletEntryJpaEntity.from(fromEntry),
+                WalletEntryJpaEntity.from(toEntry)
+        ));
     }
 
     @Override

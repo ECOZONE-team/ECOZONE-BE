@@ -7,6 +7,7 @@ import co.ecozone.ecozoneapi.payment.application.port.out.PaymentRepository;
 import co.ecozone.ecozoneapi.payment.domain.model.Payment;
 import co.ecozone.ecozoneapi.payment.domain.model.PaymentCommand;
 import co.ecozone.ecozoneapi.payment.domain.model.PaymentStatus;
+import co.ecozone.ecozoneapi.payment.infrastructure.PaymentProperties;
 import co.ecozone.ecozoneapi.platform.web.error.ApiException;
 import co.ecozone.ecozoneapi.platform.web.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -31,17 +32,19 @@ public class CancelPaymentService implements CancelPaymentUseCase {
     private final PaymentRepository paymentRepository;
     private final PaymentProvider paymentProvider;
     private final PlatformTransactionManager txm;
+    private final PaymentProperties paymentProperties;
 
     private TransactionTemplate txNew() {
         TransactionTemplate t = new TransactionTemplate(txm);
         t.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        t.setTimeout(30);
         return t;
     }
 
     @Override
     public Long cancel(Long paymentId, String reason) {
         // 멱등키 자동 생성
-        String idemKey = "cancel:" + paymentId;
+        String idemKey = paymentProperties.getLedger().getCancelKeyPrefix() + paymentId;
 
         // A-1) 결제 정보 조회 (orderId 획득)
         Payment payment = txNew().execute(st ->
