@@ -20,7 +20,14 @@ import java.time.Instant;
 @Entity
 @NoArgsConstructor
 @Table(name = "payment",
-        indexes = { @Index(name = "ux_payment_order", columnList = "orderId", unique = true) })
+        indexes = {
+                @Index(name = "ux_payment_order", columnList = "orderId", unique = true),
+                @Index(name = "idx_payment_userid", columnList = "userId"),
+                @Index(name = "idx_payment_status", columnList = "status"),
+                @Index(name = "idx_payment_created", columnList = "createdAt"),
+                @Index(name = "idx_payment_userid_status", columnList = "userId,status"),
+                @Index(name = "idx_payment_created_status", columnList = "createdAt,status")
+        })
 public class PaymentJpaEntity {
 
     @Id

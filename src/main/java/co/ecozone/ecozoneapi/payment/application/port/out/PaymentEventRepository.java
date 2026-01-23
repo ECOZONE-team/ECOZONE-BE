@@ -2,6 +2,7 @@ package co.ecozone.ecozoneapi.payment.application.port.out;
 
 import co.ecozone.ecozoneapi.payment.domain.model.PaymentEvent;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 

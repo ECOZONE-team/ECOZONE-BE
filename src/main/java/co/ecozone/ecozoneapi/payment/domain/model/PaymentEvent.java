@@ -15,20 +15,6 @@ import java.util.Objects;
 @Getter
 public final class PaymentEvent {
 
-    public enum EventType {
-        PAYMENT_CONFIRMED,    // 결제 승인 완료
-        PAYMENT_CANCELED,     // 결제 취소 완료
-        PAYMENT_FAILED,       // 결제 실패
-        VIRTUAL_ACCOUNT_ISSUED, // 가상계좌 발급
-        VIRTUAL_ACCOUNT_DEPOSITED // 가상계좌 입금
-    }
-
-    public enum ProcessStatus {
-        PENDING,     // 처리 대기
-        PROCESSED,   // 처리 완료
-        FAILED       // 처리 실패
-    }
-
     private final Long id;
     private final String eventId;         // PG의 이벤트 ID (멱등키)
     private final EventType eventType;

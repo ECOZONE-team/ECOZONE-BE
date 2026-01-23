@@ -2,12 +2,11 @@ package co.ecozone.ecozoneapi.payment.application.service;
 
 import co.ecozone.ecozoneapi.payment.application.port.out.PaymentEventRepository;
 import co.ecozone.ecozoneapi.payment.application.port.out.PaymentRepository;
-import co.ecozone.ecozoneapi.payment.domain.model.LedgerEntry;
-import co.ecozone.ecozoneapi.payment.domain.model.Payment;
-import co.ecozone.ecozoneapi.payment.domain.model.PaymentEvent;
-import co.ecozone.ecozoneapi.payment.domain.model.PaymentStatus;
+import co.ecozone.ecozoneapi.payment.domain.model.*;
+import co.ecozone.ecozoneapi.payment.infrastructure.PaymentProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -16,6 +15,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
+
+import static co.ecozone.ecozoneapi.payment.domain.model.EventType.*;
 
 /**
  * Webhook 이벤트 처리 서비스
@@ -33,10 +34,12 @@ public class WebhookService {
     private final PaymentRepository paymentRepository;
     private final PlatformTransactionManager txm;
     private final Clock clock;
+    private final PaymentProperties paymentProperties;
 
     private TransactionTemplate txNew() {
         TransactionTemplate t = new TransactionTemplate(txm);
         t.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        t.setTimeout(30);
         return t;
     }
 
@@ -54,7 +57,7 @@ public class WebhookService {
     @Transactional
     public Long handleWebhook(
             String eventId,
-            PaymentEvent.EventType eventType,
+            EventType eventType,
             String orderId,
             String paymentKey,
             String payload,
@@ -64,14 +67,22 @@ public class WebhookService {
 
         // 1) 이벤트 선점 (멱등성 체크) - REQUIRES_NEW
         PaymentEvent event = txNew().execute(status -> {
-            return eventRepository.findByEventId(eventId)
-                    .orElseGet(() -> {
-                        // 새로운 이벤트 생성
-                        PaymentEvent newEvent = PaymentEvent.create(
-                                eventId, eventType, orderId, paymentKey, payload, occurredAt, now
-                        );
-                        return eventRepository.save(newEvent);
-                    });
+            // 🔥 동시성 제어: eventId UNIQUE 제약으로 중복 방지
+            try {
+                return eventRepository.findByEventId(eventId)
+                        .orElseGet(() -> {
+                            // 새로운 이벤트 생성
+                            PaymentEvent newEvent = PaymentEvent.create(
+                                    eventId, eventType, orderId, paymentKey, payload, occurredAt, now
+                            );
+                            return eventRepository.save(newEvent);
+                        });
+            } catch (DataIntegrityViolationException e) {
+                // 동시에 같은 eventId가 저장되려 할 때 - 재조회
+                log.debug("Duplicate eventId detected (concurrent insert): eventId={}", eventId);
+                return eventRepository.findByEventId(eventId)
+                        .orElseThrow(() -> new IllegalStateException("Event not found after duplicate: " + eventId));
+            }
         });
 
         // 이미 처리된 이벤트면 바로 반환 (멱등)
@@ -86,7 +97,7 @@ public class WebhookService {
                 case PAYMENT_CONFIRMED -> handlePaymentConfirmed(orderId, paymentKey, now);
                 case PAYMENT_CANCELED -> handlePaymentCanceled(orderId, paymentKey, now);
                 case PAYMENT_FAILED -> handlePaymentFailed(orderId, now);
-                default -> log.warn("Unsupported webhook event type: {}", eventType);
+                default -> log.warn("Unsupported webhook event type: {}");
             }
 
             // 3) 이벤트 처리 완료 - REQUIRES_NEW
@@ -103,7 +114,12 @@ public class WebhookService {
             // 이벤트 처리 실패 기록
             txNew().executeWithoutResult(st -> {
                 PaymentEvent managed = eventRepository.findByEventId(eventId).orElseThrow();
-                eventRepository.save(managed.markFailed(e.getMessage(), Instant.now(clock)));
+                String errorMsg = e.getMessage();
+                // 에러 메시지 길이 제한
+                if (errorMsg != null && errorMsg.length() > 300) {
+                    errorMsg = errorMsg.substring(0, 300);
+                }
+                eventRepository.save(managed.markFailed(errorMsg, Instant.now(clock)));
             });
 
             throw e;
@@ -118,6 +134,12 @@ public class WebhookService {
             Payment payment = paymentRepository.lockByOrderId(orderId)
                     .orElseThrow(() -> new IllegalStateException("Payment not found: " + orderId));
 
+            // paymentKey 검증
+            if (payment.getPaymentKey() != null && paymentKey != null
+                    && !payment.getPaymentKey().equals(paymentKey)) {
+                throw new IllegalStateException("paymentKey mismatch: orderId=" + orderId);
+            }
+
             // 이미 terminal 상태면 처리하지 않음
             if (payment.isTerminal()) {
                 log.info("Payment already in terminal state: orderId={}, status={}", orderId, payment.getStatus());
@@ -129,10 +151,11 @@ public class WebhookService {
             paymentRepository.save(confirmed);
 
             // 원장 기록
+            PaymentProperties.Ledger ledgerConfig = paymentProperties.getLedger();
             paymentRepository.append(LedgerEntry.of(
                     orderId,
-                    "USER:" + payment.getUserId(),
-                    "MERCHANT:eco",
+                    ledgerConfig.getUserAccountPrefix() + payment.getUserId(),
+                    ledgerConfig.getMerchantAccountPrefix() + ledgerConfig.getMerchantId(),
                     payment.getAmount(),
                     now,
                     "webhook:confirmed"
@@ -150,16 +173,23 @@ public class WebhookService {
             Payment payment = paymentRepository.lockByOrderId(orderId)
                     .orElseThrow(() -> new IllegalStateException("Payment not found: " + orderId));
 
+            // paymentKey 검증
+            if (payment.getPaymentKey() != null && paymentKey != null
+                    && !payment.getPaymentKey().equals(paymentKey)) {
+                throw new IllegalStateException("paymentKey mismatch: orderId=" + orderId);
+            }
+
             // CANCELED 상태가 아니면 전이
             if (payment.getStatus() != PaymentStatus.CANCELED) {
                 Payment canceled = payment.canceled("webhook:canceled", now);
                 paymentRepository.save(canceled);
 
-                // 원장 기록 (환불)
+                // 원장 기록 (환불) - 하드코딩 제거
+                PaymentProperties.Ledger ledgerConfig = paymentProperties.getLedger();
                 paymentRepository.append(LedgerEntry.of(
                         orderId,
-                        "MERCHANT:eco",
-                        "USER:" + payment.getUserId(),
+                        ledgerConfig.getMerchantAccountPrefix() + ledgerConfig.getMerchantId(),
+                        ledgerConfig.getUserAccountPrefix() + payment.getUserId(),
                         payment.getAmount(),
                         now,
                         "webhook:canceled"

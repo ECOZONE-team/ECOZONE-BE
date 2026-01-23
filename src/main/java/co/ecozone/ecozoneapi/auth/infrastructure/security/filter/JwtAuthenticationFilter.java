@@ -53,10 +53,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 TokenVerification v = tokenProvider.verify(raw);
 
                 if (v instanceof TokenSuccess s) {
+                    // ACCESS 토큰만 허용
                     if (s.tokenType() != TokenType.ACCESS) {
+                        SecurityContextHolder.clearContext();
+                        request.setAttribute("auth.error", "invalid_token_type");
+                        log.warn("Invalid token type for API: expected ACCESS, got {}", s.tokenType());
                         chain.doFilter(request, response);
                         return;
                     }
+
+                    // 토큰 폐기 여부 확인
                     if (!revocationStore.isRevoked(s.tokenId())) {
                         Authentication auth = toAuthentication(s);
                         SecurityContextHolder.getContext().setAuthentication(auth);
@@ -81,6 +87,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         chain.doFilter(request, response);
     }
+
 
     private Authentication toAuthentication(TokenSuccess s) {
         var authorities = s.roles().stream()

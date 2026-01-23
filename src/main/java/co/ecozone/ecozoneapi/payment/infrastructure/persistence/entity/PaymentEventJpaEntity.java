@@ -1,6 +1,8 @@
 package co.ecozone.ecozoneapi.payment.infrastructure.persistence.entity;
 
+import co.ecozone.ecozoneapi.payment.domain.model.EventType;
 import co.ecozone.ecozoneapi.payment.domain.model.PaymentEvent;
+import co.ecozone.ecozoneapi.payment.domain.model.ProcessStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -36,7 +38,7 @@ public class PaymentEventJpaEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private PaymentEvent.EventType eventType;
+    private EventType eventType;
 
     @Column(length = 191)
     private String orderId;
@@ -46,7 +48,7 @@ public class PaymentEventJpaEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private PaymentEvent.ProcessStatus status;
+    private ProcessStatus status;
 
     @Column(columnDefinition = "TEXT")
     private String payload;
@@ -105,6 +107,6 @@ public class PaymentEventJpaEntity {
     @PrePersist
     void prePersist() {
         if (createdAt == null) createdAt = Instant.now();
-        if (status == null) status = PaymentEvent.ProcessStatus.PENDING;
+        if (status == null) status = ProcessStatus.PENDING;
     }
 }

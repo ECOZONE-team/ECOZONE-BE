@@ -10,6 +10,7 @@ import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
  * @since 2025-08-13
  * @author jeongdayeon
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 class JwtTokenProvider implements TokenProvider {
@@ -119,9 +121,22 @@ class JwtTokenProvider implements TokenProvider {
             @SuppressWarnings("unchecked")
             var roleNames = Optional.ofNullable((List<String>) c.getClaim("roles")).orElse(List.of());
             Set<Role> roles = roleNames.stream()
-                    .map(r -> { try { return Role.valueOf(r); } catch (Exception e) { return null; } })
-                    .filter(Objects::nonNull)
+                    .map(r -> {
+                        try {
+                            return Role.valueOf(r);
+                        } catch (IllegalArgumentException e) {
+                            // 🔒 알 수 없는 role 경고 로그
+                            log.warn("Unknown role in JWT: {} - defaulting to USER", r);
+                            return Role.USER;  // 기본값으로 설정
+                        }
+                    })
                     .collect(Collectors.toSet());
+
+// 🔒 roles가 비어있으면 최소한 USER 역할 부여
+            if (roles.isEmpty()) {
+                roles = Set.of(Role.USER);
+            }
+
 
             return new TokenSuccess(
                     type,

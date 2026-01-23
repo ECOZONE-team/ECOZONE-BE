@@ -17,6 +17,7 @@ import co.ecozone.ecozoneapi.platform.web.error.JsonAccessDeniedHandler;
 import co.ecozone.ecozoneapi.platform.web.error.JsonAuthenticationEntryPoint;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,6 +47,7 @@ import java.util.List;
  * @author jeongdayeon
  */
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -145,16 +147,29 @@ public class SecurityConfig {
         for (CorsRule r : policy.rules()) {
             CorsConfiguration cfg = new CorsConfiguration();
 
-            // allowCredentials + "*" 조합 주의: Spring이 막음 → patterns 사용
-            if (r.allowCredentials() && r.allowedOrigins().stream().anyMatch("*"::equals)) {
-                // 강제 변환: "*"는 패턴으로 옮기고 origins는 비움
-                cfg.setAllowedOrigins(null);
-                cfg.setAllowedOriginPatterns(
-                        r.allowedOriginPatterns().isEmpty() ? List.of("*") : r.allowedOriginPatterns()
+            // allowCredentials + "*" 조합 검증 강화
+            if (r.allowCredentials() && r.allowedOrigins().contains("*")) {
+                throw new IllegalArgumentException(
+                        "SECURITY VIOLATION: Cannot use wildcard '*' with allowCredentials=true. " +
+                                "This combination exposes cookies and credentials to all origins. " +
+                                "Use explicit origins (e.g., ['https://example.com']) or set allowCredentials=false."
                 );
-            } else {
-                if (!r.allowedOrigins().isEmpty()) cfg.setAllowedOrigins(r.allowedOrigins());
-                if (!r.allowedOriginPatterns().isEmpty()) cfg.setAllowedOriginPatterns(r.allowedOriginPatterns());
+            }
+
+            // allowCredentials + "*" in patterns도 검증
+            if (r.allowCredentials() && r.allowedOriginPatterns().contains("*")) {
+                log.warn("Using wildcard pattern '*' with allowCredentials=true. " +
+                        "This may expose credentials to all origins. Consider using specific patterns.");
+            }
+
+            // Origins 설정
+            if (!r.allowedOrigins().isEmpty()) {
+                cfg.setAllowedOrigins(r.allowedOrigins());
+            }
+
+            // Patterns 설정
+            if (!r.allowedOriginPatterns().isEmpty()) {
+                cfg.setAllowedOriginPatterns(r.allowedOriginPatterns());
             }
 
             if (!r.allowedMethods().isEmpty()) cfg.setAllowedMethods(r.allowedMethods());
@@ -168,4 +183,5 @@ public class SecurityConfig {
         }
         return source;
     }
+
 }

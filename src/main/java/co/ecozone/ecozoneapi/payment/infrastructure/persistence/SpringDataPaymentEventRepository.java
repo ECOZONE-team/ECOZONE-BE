@@ -2,7 +2,9 @@ package co.ecozone.ecozoneapi.payment.infrastructure.persistence;
 
 import co.ecozone.ecozoneapi.payment.domain.model.PaymentEvent;
 import co.ecozone.ecozoneapi.payment.infrastructure.persistence.entity.PaymentEventJpaEntity;
+import io.lettuce.core.dynamic.annotation.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -18,6 +20,10 @@ public interface SpringDataPaymentEventRepository extends JpaRepository<PaymentE
 
     List<PaymentEventJpaEntity> findByOrderId(String orderId);
 
+    /**
+     * 미처리 이벤트 조회
+     */
     @Query("SELECT e FROM PaymentEventJpaEntity e WHERE e.status = 'PENDING' ORDER BY e.createdAt ASC")
     List<PaymentEventJpaEntity> findPendingEvents();
+
 }

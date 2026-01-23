@@ -3,9 +3,14 @@ package co.ecozone.ecozoneapi.payment.infrastructure.persistence;
 import co.ecozone.ecozoneapi.payment.application.port.out.PaymentEventRepository;
 import co.ecozone.ecozoneapi.payment.domain.model.PaymentEvent;
 import co.ecozone.ecozoneapi.payment.infrastructure.persistence.entity.PaymentEventJpaEntity;
+import io.lettuce.core.dynamic.annotation.Param;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
